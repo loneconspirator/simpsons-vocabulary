@@ -26,6 +26,7 @@ cursor.execute('''
 CREATE TABLE IF NOT EXISTS uses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     word TEXT,
+    original_word TEXT,
     episode_id TEXT,
     FOREIGN KEY (word) REFERENCES words(word),
     FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
