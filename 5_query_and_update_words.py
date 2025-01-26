@@ -17,12 +17,12 @@ wiktionary_cursor = wiktionary_conn.cursor()
 def query_local_wiktionary(word):
     start_time = time.time()
     wiktionary_cursor.execute('''
-    SELECT entry FROM words WHERE word = ?
+    SELECT 1 FROM words WHERE word = ?
     ''', (word.lower(),))
     result = wiktionary_cursor.fetchone()
     query_time = time.time() - start_time
-    # logging.debug(f"Query time for word '{word}': {query_time:.4f} seconds, result: {result}")
-    return result[0] if result else None
+    # logging.verbose(f"Query time for word '{word}': {query_time:.4f} seconds, result: {result}")
+    return result is not None
 
 # Loop through numbers 1 to 5
 for count in range(1, 6):
@@ -40,14 +40,14 @@ for count in range(1, 6):
         definition = query_local_wiktionary(word)
 
         if definition:
-            # Update the database with the definition and set is_vocabulary to TRUE
+            # Update the database and set is_vocabulary to TRUE if definition was found
             cursor.execute('''
-            UPDATE words SET definition = ?, is_vocabulary = TRUE WHERE word = ?
-            ''', (definition, word))
+            UPDATE words SET is_vocabulary = TRUE WHERE word = ?
+            ''', (word,))
         else:
             # Set is_vocabulary to FALSE if no definition is found
             cursor.execute('''
-            UPDATE words SET definition = NULL, is_vocabulary = FALSE WHERE word = ?
+            UPDATE words SET is_vocabulary = FALSE WHERE word = ?
             ''', (word,))
 
         # Commit changes after each update
