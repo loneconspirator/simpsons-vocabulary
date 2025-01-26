@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS words (
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS episodes (
     episode_id TEXT PRIMARY KEY,
-    episode_name TEXT
+    episode_name TEXT,
+    publishable BOOLEAN DEFAULT FALSE,
+    season INTEGER DEFAULT NULL,
+    episode INTEGER DEFAULT NULL
 )
 ''')
 
