@@ -30,3 +30,5 @@ build/
 transcripts/
 downloads/
 nltk_data/
+wiktionary/dump.xml
+output/
