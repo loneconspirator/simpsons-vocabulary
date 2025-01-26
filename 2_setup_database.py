@@ -9,7 +9,8 @@ cursor.execute('''
 CREATE TABLE IF NOT EXISTS words (
     word TEXT PRIMARY KEY,
     count INTEGER DEFAULT 0,
-    is_vocabulary BOOLEAN DEFAULT NULL
+    is_vocabulary BOOLEAN DEFAULT NULL,
+    use BOOLEAN DEFAULT FALSE
 )
 ''')
 

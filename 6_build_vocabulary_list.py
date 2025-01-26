@@ -16,21 +16,39 @@ def get_vocabulary_list():
     # Iterate through each episode and get vocabulary words
     for episode in episodes:
         episode_id = episode[0]
-        print(f"Episode ID: {episode_id}")
+        print(f"\nEpisode {episode_id}")
+        print("-" * (len(str(episode_id)) + 8))
         
-        # Query to get vocabulary words for the episode
+        # Query to get vocabulary words for the episode in order of first appearance
+        # Using MIN(u.id) to get the first occurrence of each word
         cursor.execute('''
-            SELECT w.word FROM words w
-            JOIN word_episodes we ON w.word = we.word
-            WHERE we.episode_id = ? AND w.is_vocabulary = 1
+            WITH FirstAppearance AS (
+                SELECT 
+                    w.word,
+                    MIN(u.id) as first_appearance_id,
+                    MIN(u.original_word) as original_form
+                FROM words w
+                JOIN uses u ON w.word = u.word
+                WHERE u.episode_id = ? AND w.is_vocabulary = 1
+                GROUP BY w.word
+            )
+            SELECT word, original_form
+            FROM FirstAppearance
+            ORDER BY first_appearance_id
         ''', (episode_id,))
+        
         vocabulary_words = cursor.fetchall()
         
-        # Print vocabulary words
-        for word in vocabulary_words:
-            print(word[0])
-        print("\n")
-    
+        # Print vocabulary words with their original form
+        if vocabulary_words:
+            for lemma, original in vocabulary_words:
+                if lemma != original:
+                    print(f"{lemma} ({original})")
+                else:
+                    print(lemma)
+        else:
+            print("No vocabulary words found")
+        
     # Close the connection
     conn.close()
 
