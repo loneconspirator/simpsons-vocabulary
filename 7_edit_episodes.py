@@ -16,7 +16,7 @@ TEMPLATE = """
     <title>{% if episode %}Edit Episode {{ episode.episode_id }}{% else %}Episodes{% endif %}</title>
     <style>
         body { font-family: system-ui; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
         th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; }
         tr:hover { background-color: #f5f5f5; }
         .form-group { margin: 1rem 0; }
@@ -28,7 +28,41 @@ TEMPLATE = """
         .word-list { margin-top: 2rem; }
         .word-item { display: flex; align-items: center; margin: 0.5rem 0; }
         .original-form { color: #666; margin-left: 0.5rem; }
+        .season-header {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            margin: 1rem 0 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .season-header:hover {
+            background: #e9ecef;
+        }
+        .season-content {
+            display: none;
+        }
+        .season-content.show {
+            display: block;
+        }
+        .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        .season-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
     </style>
+    <script>
+        function toggleSeason(element) {
+            element.classList.toggle('active');
+            const content = element.nextElementSibling;
+            content.classList.toggle('show');
+        }
+    </script>
 </head>
 <body>
     {% if episode %}
@@ -74,28 +108,38 @@ TEMPLATE = """
         <p><a href="{{ url_for('index') }}">Back to Episodes List</a></p>
     {% else %}
         <h1>Episodes</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>Episode ID</th>
-                    <th>Name</th>
-                    <th>Season</th>
-                    <th>Publishable</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ep in episodes %}
-                    <tr>
-                        <td>{{ ep.episode_id }}</td>
-                        <td>{{ ep.episode_name or '' }}</td>
-                        <td>{{ ep.season or '' }}</td>
-                        <td>{{ '✓' if ep.publishable else '' }}</td>
-                        <td><a href="{{ url_for('edit', episode_id=ep.episode_id) }}">Edit</a></td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% for season in sorted_seasons %}
+            <div class="season-section">
+                <div class="season-header" onclick="toggleSeason(this)">
+                    <span>{% if season == 'Unknown Season' %}{{ season }}{% else %}Season {{ season }}{% endif %}</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="season-content">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Episode ID</th>
+                                <th>Name</th>
+                                <th>Season</th>
+                                <th>Publishable</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ep in episodes_by_season[season] %}
+                                <tr>
+                                    <td>{{ ep.episode_id }}</td>
+                                    <td>{{ ep.episode_name or '' }}</td>
+                                    <td>{{ ep.season or '' }}</td>
+                                    <td>{{ '✓' if ep.publishable else '' }}</td>
+                                    <td><a href="{{ url_for('edit', episode_id=ep.episode_id) }}">Edit</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
     {% endif %}
 </body>
 </html>
@@ -115,8 +159,20 @@ def index():
             season,
             episode_id
     ''').fetchall()
+    
+    # Group episodes by season
+    episodes_by_season = {}
+    for ep in episodes:
+        season = ep['season'] if ep['season'] is not None else 'Unknown Season'
+        if season not in episodes_by_season:
+            episodes_by_season[season] = []
+        episodes_by_season[season].append(ep)
+    
+    # Sort seasons, putting "Unknown Season" at the end
+    sorted_seasons = sorted(episodes_by_season.keys(), key=lambda x: float('inf') if x == 'Unknown Season' else x)
+    
     db.close()
-    return render_template_string(TEMPLATE, episodes=episodes)
+    return render_template_string(TEMPLATE, episodes_by_season=episodes_by_season, sorted_seasons=sorted_seasons)
 
 @app.route('/edit/<episode_id>', methods=['GET', 'POST'])
 def edit(episode_id):
