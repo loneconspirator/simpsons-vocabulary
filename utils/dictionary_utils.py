@@ -62,14 +62,27 @@ def get_word_definitions(word: str) -> List[str]:
             def_lines = re.finditer(r'^#[^#\n*].*$', section_text, re.MULTILINE)
             
             for def_line in def_lines:
-                # Clean up the definition
+                # Get the raw definition line
                 definition = def_line.group(0)
                 
                 # Remove the leading #
                 definition = re.sub(r'^#\s*', '', definition)
                 
-                # Remove wiki templates {{...}}
-                definition = re.sub(r'\{\{[^}]+\}\}', '', definition)
+                # Extract usage labels before removing templates
+                usage_labels = []
+                for label_match in re.finditer(r'\{\{lb\|en\|([^}]+)\}\}', definition):
+                    usage_labels.append(label_match.group(1))
+                
+                # Handle non-gloss definitions specially - use a more precise regex
+                non_gloss_match = re.search(r'\{\{non-gloss\|((?:[^{}]|\{\{[^{}]*\}\})*)\}\}', definition)
+                if non_gloss_match:
+                    # Extract content and handle special characters like commas
+                    content = non_gloss_match.group(1)
+                    # Replace {{,}} with actual comma
+                    content = re.sub(r'\{\{,\}\}', ',', content)
+                    # Handle any remaining nested templates
+                    content = re.sub(r'\{\{[^{}]*\}\}', '', content)
+                    definition = content
                 
                 # Handle links [[word|display]] -> display
                 definition = re.sub(r'\[\[[^]|]+\|([^]]+)\]\]', r'\1', definition)
@@ -83,10 +96,24 @@ def get_word_definitions(word: str) -> List[str]:
                 # Remove references <ref>...</ref>
                 definition = re.sub(r'<ref>.*?</ref>', '', definition)
                 
-                # Clean up whitespace
-                definition = definition.strip()
+                # Remove wiki templates {{...}} - handle nested braces AFTER extracting labels
+                definition = re.sub(r'\{\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\}', '', definition)
                 
+                # Remove any remaining templates or markup
+                definition = re.sub(r'[{}[\]<>]', '', definition)
+                
+                # Remove template prefixes that might remain after template removal
+                definition = re.sub(r'^(?:Non-gloss|gloss|n)\|', '', definition, flags=re.IGNORECASE)
+                
+                # Clean up whitespace and ensure first letter is capitalized
+                definition = definition.strip()
                 if definition and not definition.startswith(('(', '*', '#', ':')):
+                    # Capitalize first letter of the definition
+                    if len(definition) > 0:
+                        definition = definition[0].upper() + definition[1:]
+                    # Add usage labels in parentheses if present
+                    if usage_labels:
+                        definition = f"({', '.join(usage_labels)}) {definition}"
                     definitions.append(f"{pos}: {definition}")
         
         return definitions

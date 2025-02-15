@@ -75,5 +75,40 @@ class TestDictionaryUtils(unittest.TestCase):
         self.assertEqual(lower_defs, upper_defs, "Case should not affect the definitions returned")
         self.assertEqual(lower_defs, title_defs, "Case should not affect the definitions returned")
 
+    def test_word_with_accent(self):
+        """Test that words with accents like 'touché' are handled correctly"""
+        definitions = get_word_definitions("touché")
+        
+        # Verify we got some definitions
+        self.assertTrue(len(definitions) > 0, "Should have found definitions for 'touché'")
+        
+        # Check format of each definition
+        for definition in definitions:
+            # Each definition should start with a part of speech followed by a colon
+            self.assertRegex(
+                definition,
+                r'^(Noun|Verb|Adjective|Adverb|Pronoun|Preposition|Conjunction|Interjection): .+$',
+                f"Definition should start with part of speech and be properly formatted: {definition}"
+            )
+            
+            # Definition should not contain stray brackets or braces
+            self.assertNotRegex(
+                definition,
+                r'[{}\\[\\]]',
+                f"Definition should not contain stray brackets or braces: {definition}"
+            )
+            
+            # Definition should be a complete, coherent sentence or phrase
+            self.assertNotRegex(
+                definition,
+                r'^[a-z]',  # Definition content should not start with lowercase
+                f"Definition content should start with uppercase: {definition}"
+            )
+        
+        # Print the actual definitions for manual review
+        print("\nActual definitions found for 'touché':")
+        for i, definition in enumerate(definitions, 1):
+            print(f"{i}. {definition}")
+
 if __name__ == '__main__':
     unittest.main()
