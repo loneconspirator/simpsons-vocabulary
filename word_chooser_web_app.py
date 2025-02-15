@@ -62,10 +62,31 @@ TEMPLATE = """
         .season-header.active .toggle-icon {
             transform: rotate(180deg);
         }
+        .edit-link { 
+            color: #007bff; 
+            text-decoration: none; 
+            font-size: 0.8em; 
+            margin-left: 0.5rem; 
+            cursor: pointer; 
+        }
+        .edit-link:hover { 
+            text-decoration: underline; 
+        }
+        .word-edit-box {
+            padding: 0.25rem;
+            margin: -0.25rem 0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: inherit;
+            width: auto;
+            display: none;
+        }
     </style>
     <script>
         // Store selected definitions
         const selectedDefinitions = {};
+        // Store original words for edit cancellation
+        const originalWords = {};
 
         function toggleSeason(element) {
             element.classList.toggle('active');
@@ -93,10 +114,80 @@ TEMPLATE = """
             }
         }
 
-        // Save definition selection when radio button changes
         function saveDefinitionSelection(word, definition) {
             console.log('Saving definition for:', word, definition);
             selectedDefinitions[word] = definition;
+        }
+
+        function editWord(word) {
+            const wordSpan = document.getElementById(`word_text_${word}`);
+            const editBox = document.getElementById(`word_edit_${word}`);
+            const editLink = document.getElementById(`word_edit_link_${word}`);
+            
+            // Store original word if not already stored
+            if (!originalWords[word]) {
+                originalWords[word] = wordSpan.textContent;
+            }
+            
+            wordSpan.style.display = 'none';
+            editBox.style.display = 'inline';
+            editBox.value = wordSpan.textContent;
+            editBox.focus();
+            editLink.textContent = 'save';
+            editLink.onclick = () => saveWord(word);
+            
+            // Add escape key handler
+            editBox.onkeydown = (e) => {
+                if (e.key === 'Escape') {
+                    cancelEdit(word);
+                } else if (e.key === 'Enter') {
+                    saveWord(word);
+                }
+            };
+        }
+
+        function saveWord(word) {
+            const wordSpan = document.getElementById(`word_text_${word}`);
+            const editBox = document.getElementById(`word_edit_${word}`);
+            const editLink = document.getElementById(`word_edit_link_${word}`);
+            const newWord = editBox.value.trim();
+            
+            if (newWord && newWord !== word) {
+                // Update the word text
+                wordSpan.textContent = newWord;
+                
+                // Update the hidden input for form submission
+                const hiddenInput = document.getElementById(`word_new_${word}`);
+                hiddenInput.value = newWord;
+                
+                // Update any existing definition selection
+                if (selectedDefinitions[word]) {
+                    selectedDefinitions[newWord] = selectedDefinitions[word];
+                    delete selectedDefinitions[word];
+                }
+            }
+            
+            wordSpan.style.display = 'inline';
+            editBox.style.display = 'none';
+            editLink.textContent = 'edit';
+            editLink.onclick = () => editWord(word);
+        }
+
+        function cancelEdit(word) {
+            const wordSpan = document.getElementById(`word_text_${word}`);
+            const editBox = document.getElementById(`word_edit_${word}`);
+            const editLink = document.getElementById(`word_edit_link_${word}`);
+            
+            // Restore original word
+            if (originalWords[word]) {
+                wordSpan.textContent = originalWords[word];
+                delete originalWords[word];
+            }
+            
+            wordSpan.style.display = 'inline';
+            editBox.style.display = 'none';
+            editLink.textContent = 'edit';
+            editLink.onclick = () => editWord(word);
         }
 
         // Show definitions for pre-checked words on page load
@@ -153,7 +244,18 @@ TEMPLATE = """
                                    {% if word.use %}checked{% endif %} 
                                    onchange="toggleDefinitions('{{ word.word }}')"
                                    onclick="toggleDefinitions('{{ word.word }}')">
-                            <label for="word_use_{{ word.word }}">{{ word.word }}</label>
+                            <span id="word_text_{{ word.word }}">{{ word.word }}</span>
+                            <input type="text" 
+                                   id="word_edit_{{ word.word }}"
+                                   class="word-edit-box"
+                                   value="{{ word.word }}">
+                            <input type="hidden"
+                                   id="word_new_{{ word.word }}"
+                                   name="word_new_{{ word.word }}"
+                                   value="{{ word.word }}">
+                            <a class="edit-link" 
+                               id="word_edit_link_{{ word.word }}"
+                               onclick="editWord('{{ word.word }}')">edit</a>
                             {% if word.original_word != word.word %}
                                 <span class="original-form">({{ word.original_word }})</span>
                             {% endif %}
@@ -265,15 +367,27 @@ def edit(episode_id):
             episode_id
         ))
         
-        # Update word usage
+        # Update word usage and definitions
         for key, value in request.form.items():
             if key.startswith('word_use_'):
                 word = key.replace('word_use_', '')
                 use_word = value == '1'
+                
+                # Check if word has been edited
+                new_word = request.form.get(f'word_new_{word}')
+                if new_word and new_word != word:
+                    # Update the word in both tables
+                    db.execute('UPDATE words SET word = ? WHERE word = ?', 
+                             (new_word, word))
+                    db.execute('UPDATE uses SET word = ? WHERE word = ?', 
+                             (new_word, word))
+                    # Use the new word for the rest of the updates
+                    word = new_word
+                
                 db.execute('UPDATE words SET use = ? WHERE word = ?', 
                           (use_word, word))
                 
-                # If the word is being used, update its definition in the uses table
+                # If the word is being used, update its definition
                 if use_word:
                     definition = request.form.get(f'word_definition_{word}')
                     if definition:
