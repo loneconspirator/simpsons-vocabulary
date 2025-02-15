@@ -1,5 +1,6 @@
 from flask import Flask, render_template_string, request, redirect, url_for
 import sqlite3
+from utils.dictionary_utils import get_word_definitions
 
 app = Flask(__name__)
 
@@ -26,8 +27,14 @@ TEMPLATE = """
         input[type="submit"] { padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         input[type="submit"]:hover { background: #0056b3; }
         .word-list { margin-top: 2rem; }
-        .word-item { display: flex; align-items: center; margin: 0.5rem 0; }
+        .word-item { margin: 0.5rem 0; }
+        .word-header { display: flex; align-items: center; }
         .original-form { color: #666; margin-left: 0.5rem; }
+        .definitions { margin-left: 2rem; margin-top: 0.5rem; display: none; }
+        .definitions.show { display: block; }
+        .definition-option { margin: 0.5rem 0; display: flex; align-items: flex-start; }
+        .definition-option input[type="radio"] { margin-top: 0.25rem; margin-right: 0.5rem; }
+        .definition-option label { margin: 0; }
         .season-header {
             background: #f8f9fa;
             padding: 0.75rem;
@@ -57,11 +64,59 @@ TEMPLATE = """
         }
     </style>
     <script>
+        // Store selected definitions
+        const selectedDefinitions = {};
+
         function toggleSeason(element) {
             element.classList.toggle('active');
             const content = element.nextElementSibling;
             content.classList.toggle('show');
         }
+        
+        function toggleDefinitions(word) {
+            console.log('Toggling definitions for:', word);
+            const checkbox = document.querySelector(`input[name="word_use_${word}"]`);
+            const definitions = document.getElementById(`definitions_${word}`);
+            console.log('Checkbox checked:', checkbox.checked);
+            console.log('Definitions element:', definitions);
+            if (checkbox.checked) {
+                definitions.classList.add('show');
+                // If we have a saved selection, reapply it
+                if (selectedDefinitions[word]) {
+                    const radio = definitions.querySelector(`input[type="radio"][value="${selectedDefinitions[word]}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                    }
+                }
+            } else {
+                definitions.classList.remove('show');
+            }
+        }
+
+        // Save definition selection when radio button changes
+        function saveDefinitionSelection(word, definition) {
+            console.log('Saving definition for:', word, definition);
+            selectedDefinitions[word] = definition;
+        }
+
+        // Show definitions for pre-checked words on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded');
+            const checkedWords = document.querySelectorAll('input[type="checkbox"][name^="word_use_"]:checked');
+            console.log('Found checked words:', checkedWords.length);
+            
+            // Initialize selected definitions from any pre-selected radio buttons
+            document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+                const word = radio.name.replace('word_definition_', '');
+                selectedDefinitions[word] = radio.value;
+            });
+            
+            checkedWords.forEach(checkbox => {
+                const word = checkbox.name.replace('word_use_', '');
+                console.log('Showing definitions for:', word);
+                toggleDefinitions(word);
+            });
+        });
     </script>
 </head>
 <body>
@@ -90,13 +145,32 @@ TEMPLATE = """
                 <h2>Vocabulary Words</h2>
                 {% for word in words %}
                     <div class="word-item">
-                        <label>
-                            <input type="checkbox" name="word_use_{{ word.word }}" value="1" {% if word.use %}checked{% endif %}>
-                            {{ word.word }}
+                        <div class="word-header">
+                            <input type="checkbox" 
+                                   id="word_use_{{ word.word }}"
+                                   name="word_use_{{ word.word }}" 
+                                   value="1" 
+                                   {% if word.use %}checked{% endif %} 
+                                   onchange="toggleDefinitions('{{ word.word }}')"
+                                   onclick="toggleDefinitions('{{ word.word }}')">
+                            <label for="word_use_{{ word.word }}">{{ word.word }}</label>
                             {% if word.original_word != word.word %}
                                 <span class="original-form">({{ word.original_word }})</span>
                             {% endif %}
-                        </label>
+                        </div>
+                        <div id="definitions_{{ word.word }}" class="definitions {% if word.use %}show{% endif %}">
+                            {% for definition in get_word_definitions(word.word) %}
+                            <div class="definition-option">
+                                <input type="radio" 
+                                       id="def_{{ word.word }}_{{ loop.index }}"
+                                       name="word_definition_{{ word.word }}" 
+                                       value="{{ definition }}" 
+                                       {% if word.definition == definition %}checked{% endif %}
+                                       onchange="saveDefinitionSelection('{{ word.word }}', this.value)">
+                                <label for="def_{{ word.word }}_{{ loop.index }}">{{ definition }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>
@@ -195,8 +269,19 @@ def edit(episode_id):
         for key, value in request.form.items():
             if key.startswith('word_use_'):
                 word = key.replace('word_use_', '')
+                use_word = value == '1'
                 db.execute('UPDATE words SET use = ? WHERE word = ?', 
-                          (value == '1', word))
+                          (use_word, word))
+                
+                # If the word is being used, update its definition in the uses table
+                if use_word:
+                    definition = request.form.get(f'word_definition_{word}')
+                    if definition:
+                        db.execute('''
+                            UPDATE uses 
+                            SET definition = ?
+                            WHERE word = ? AND episode_id = ?
+                        ''', (definition, word, episode_id))
         
         db.commit()
         return redirect(url_for('index'))
@@ -212,19 +297,20 @@ def edit(episode_id):
                 w.word,
                 w.use,
                 MIN(u.id) as first_appearance_id,
-                MIN(u.original_word) as original_word
+                MIN(u.original_word) as original_word,
+                MIN(u.definition) as definition
             FROM words w
             JOIN uses u ON w.word = u.word
             WHERE u.episode_id = ? AND w.is_vocabulary = 1
             GROUP BY w.word
         )
-        SELECT word, use, original_word
+        SELECT word, use, original_word, definition
         FROM FirstAppearance
         ORDER BY first_appearance_id
     ''', (episode_id,)).fetchall()
     
     db.close()
-    return render_template_string(TEMPLATE, episode=episode, words=words)
+    return render_template_string(TEMPLATE, episode=episode, words=words, get_word_definitions=get_word_definitions)
 
 if __name__ == '__main__':
     app.run(debug=True)
