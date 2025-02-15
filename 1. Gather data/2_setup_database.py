@@ -1,7 +1,7 @@
 import sqlite3
 
 # Connect to SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect('../tv_vocab.db')
+conn = sqlite3.connect('../db/tv_vocab.db')
 cursor = conn.cursor()
 
 # Create table for words
@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS uses (
     word TEXT,
     original_word TEXT,
     episode_id TEXT,
+    definition TEXT,
     FOREIGN KEY (word) REFERENCES words(word),
     FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
 )

@@ -11,7 +11,7 @@ logging.basicConfig(
 )
 
 def get_db():
-    db = sqlite3.connect('tv_vocab.db')
+    db = sqlite3.connect('../db/tv_vocab.db')
     db.row_factory = sqlite3.Row
     return db
 

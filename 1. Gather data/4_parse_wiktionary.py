@@ -5,7 +5,7 @@ import atexit
 from tqdm import tqdm
 
 # Connect to the new wiktionary database
-conn = sqlite3.connect('../wiktionary.db')
+conn = sqlite3.connect('../db/wiktionary.db')
 cursor = conn.cursor()
 
 # Disable auto-commit and set PRAGMA synchronous to OFF

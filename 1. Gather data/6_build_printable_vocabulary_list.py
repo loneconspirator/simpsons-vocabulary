@@ -2,7 +2,7 @@ import sqlite3
 
 # Connect to the SQLite database
 def connect_db():
-    return sqlite3.connect('../tv_vocab.db')
+    return sqlite3.connect('../db/tv_vocab.db')
 
 # Function to get vocabulary words for each episode
 def get_vocabulary_list():

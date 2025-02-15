@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 
 def get_publishable_episodes():
-    conn = sqlite3.connect('tv_vocab.db')
+    conn = sqlite3.connect('db/tv_vocab.db')
     cursor = conn.cursor()
 
     # Get all publishable episodes with their words

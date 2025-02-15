@@ -7,7 +7,7 @@ import spacy
 nlp = spacy.load('en_core_web_sm')
 
 # Connect to the SQLite database
-conn = sqlite3.connect('../tv_vocab.db')
+conn = sqlite3.connect('../db/tv_vocab.db')
 cursor = conn.cursor()
 
 def extract_words(content):
