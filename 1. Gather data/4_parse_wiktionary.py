@@ -5,7 +5,7 @@ import atexit
 from tqdm import tqdm
 
 # Connect to the new wiktionary database
-conn = sqlite3.connect('wiktionary.db')
+conn = sqlite3.connect('../wiktionary.db')
 cursor = conn.cursor()
 
 # Disable auto-commit and set PRAGMA synchronous to OFF
@@ -89,13 +89,13 @@ class WiktionaryHandler(xml.sax.ContentHandler):
             self.text += content
         elif self.is_ns:
             self.ns += content
-        
+
         # Update the number of bytes read
         self.bytes_read += len(content.encode('utf-8'))
         self.progress_bar.update(len(content.encode('utf-8')))
 
 # Create a parser and set the handler
-file_path = 'wiktionary/dump.xml'
+file_path = '../wiktionary/dump.xml'
 file_size = os.path.getsize(file_path)
 parser = xml.sax.make_parser()
 

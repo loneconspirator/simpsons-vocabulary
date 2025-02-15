@@ -7,9 +7,9 @@ from tqdm import tqdm
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Connect to SQLite databases
-conn = sqlite3.connect('tv_vocab.db')
+conn = sqlite3.connect('../tv_vocab.db')
 cursor = conn.cursor()
-wiktionary_conn = sqlite3.connect('wiktionary.db')
+wiktionary_conn = sqlite3.connect('../wiktionary.db')
 wiktionary_cursor = wiktionary_conn.cursor()
 
 # Function to query the local wiktionary database

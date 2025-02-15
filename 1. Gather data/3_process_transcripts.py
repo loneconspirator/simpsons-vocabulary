@@ -7,21 +7,21 @@ import spacy
 nlp = spacy.load('en_core_web_sm')
 
 # Connect to the SQLite database
-conn = sqlite3.connect('tv_vocab.db')
+conn = sqlite3.connect('../tv_vocab.db')
 cursor = conn.cursor()
 
 def extract_words(content):
     # Process the text with spaCy
     doc = nlp(content.lower())
-    
+
     # Extract lemmatized words and their original forms, keeping only those with alphabetic characters
     # and filtering out stop words and punctuation
-    words = [(token.lemma_, token.text) for token in doc 
+    words = [(token.lemma_, token.text) for token in doc
             if token.is_alpha  # only alphabetic characters
             and not token.is_stop  # not a stop word
             and not token.is_punct  # not punctuation
             and len(token.text) > 1]  # more than one character
-    
+
     return words
 
 # Function to process a transcript file
@@ -57,12 +57,12 @@ def process_transcript(file_path, episode_id):
                 cursor.execute('INSERT INTO words (word, count) VALUES (?, 1)', (lemma,))
 
             # Insert into uses table with original word
-            cursor.execute('INSERT INTO uses (word, original_word, episode_id) VALUES (?, ?, ?)', 
+            cursor.execute('INSERT INTO uses (word, original_word, episode_id) VALUES (?, ?, ?)',
                          (lemma, original, episode_id))
             word_count += 1
             if word_count % 100 == 0:
                 print(f"Processed {word_count}/{len(words)} words...", end='\r')
-        
+
         print(f"\nCompleted processing {word_count} words for episode {episode_id}")
 
     # Commit changes
@@ -70,7 +70,7 @@ def process_transcript(file_path, episode_id):
 
 # Example usage
 # Assuming transcript files are stored in a directory named 'transcripts'
-transcript_dir = 'transcripts'
+transcript_dir = '../transcripts'
 
 print("\nStarting transcript processing...")
 # Get all transcript files and sort them

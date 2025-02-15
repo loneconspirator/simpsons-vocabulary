@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simpsons Vocabulary</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .header {
+            background-color: #ffd700;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header img {
+            width: 80px;
+            height: 80px;
+            margin-right: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+            object-position: top;
+            background-color: white;
+            padding: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #000;
+            font-size: 2em;
+        }
+
+        .season-nav {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .season-label {
+            color: #ff6b6b;
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        .season-btn {
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: 10px 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .season-btn.active {
+            background-color: #ff5252;
+            color: white;
+        }
+
+        .season-btn:hover {
+            background-color: #ff5252;
+            color: white;
+        }
+
+        .episode-container {
+            padding: 20px;
+        }
+
+        .episode-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .episode-card.hidden {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .episode-title {
+            color: #ff6b6b;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .vocabulary-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .vocabulary-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .word {
+            font-weight: bold;
+        }
+
+        .definition {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const seasonButtons = document.querySelectorAll('.season-btn');
+            
+            seasonButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    seasonButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Get the season number
+                    const season = this.textContent;
+                    
+                    // Hide all episode cards with transition
+                    const allEpisodeCards = document.querySelectorAll('.episode-card');
+                    allEpisodeCards.forEach(card => {
+                        if (card.classList.contains(`season-${season}`)) {
+                            card.classList.remove('hidden');
+                            // Small delay to ensure transform happens
+                            setTimeout(() => {
+                                card.style.opacity = '1';
+                                card.style.transform = 'translateY(0)';
+                            }, 50);
+                        } else {
+                            card.style.opacity = '0';
+                            card.style.transform = 'translateY(10px)';
+                            // Add hidden class after transition
+                            setTimeout(() => {
+                                card.classList.add('hidden');
+                            }, 300);
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <header class="header">
+        <img src="smart-lisa.png" alt="Simpsons Logo">
+        <h1>Simpsons Vocabulary</h1>
+    </header>
+
+    <nav class="season-nav">
+        <span class="season-label">Season: </span>
+        <button class="season-btn active">1</button> </nav>
+
+    <main class="episode-container">
+        <div class="episode-card season-1">
+            <h2 class="episode-title">Episode 1: Simpsons Roasting on an Open Fire</h2>
+                <div class="vocabulary-item">
+                    <div class="word">estimation</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">weihnachten</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">touche</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">omen</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">scrawny</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">unadulterate</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">alluring</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">pap</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">washout</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">prospect</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">frailty</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">onslaught</div>
+                </div>
+        </div>
+        <div class="episode-card season-1">
+            <h2 class="episode-title">Episode 2: Bart the Genius</h2>
+                <div class="vocabulary-item">
+                    <div class="word">superego</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">palindrome</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">staphylococci</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">illiteracy</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">desecration</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">vandalize</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">picoliter</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">abbreviation</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">phonetic</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">contrary</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">fraught</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">swampland</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">derivative</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">malaise</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">crapola</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">variant</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">ego</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">reluctant</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">ennui</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">scenic</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">visualize</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">deface</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">paradox</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">turpentine</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">subconscious</div>
+                </div>
+        </div>
+        <div class="episode-card season-1">
+            <h2 class="episode-title">Episode 3: Homer's Odyssey</h2>
+                <div class="vocabulary-item">
+                    <div class="word">perfectionist</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">siege</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">incompetence</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">esteemed</div>
+                </div>
+                <div class="vocabulary-item">
+                    <div class="word">locomotive</div>
+                </div>
+        </div> </main>
+</body>
+</html>

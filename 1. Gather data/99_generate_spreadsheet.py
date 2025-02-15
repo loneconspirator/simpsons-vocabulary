@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 
 # Connect to the SQLite database
-conn = sqlite3.connect('tv_vocab.db')
+conn = sqlite3.connect('../tv_vocab.db')
 cursor = conn.cursor()
 
 # Query to get words used fewer than 5 times and their episodes
