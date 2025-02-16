@@ -358,18 +358,32 @@ def edit(episode_id):
             # Check if word has been edited
             new_word = request.form.get(f'word_new_{word}')
             if new_word and new_word != word:
-                # Update the word in both tables
-                db.execute('UPDATE words SET word = ? WHERE word = ?', 
-                         (new_word, word))
-                db.execute('UPDATE uses SET word = ? WHERE word = ?', 
-                         (new_word, word))
+                # Check if the new word exists in the words table
+                existing_word = db.execute('SELECT word FROM words WHERE word = ?', (new_word,)).fetchone()
+                if not existing_word:
+                    # Add new word to words table with is_vocabulary=1
+                    db.execute('INSERT INTO words (word, is_vocabulary) VALUES (?, 1)', (new_word,))
+                
+                # Update the word in uses table only
+                db.execute('UPDATE uses SET word = ? WHERE word = ? AND episode_id = ?', 
+                         (new_word, word, episode_id))
+                
+                # Check if the old word is still used anywhere
+                still_used = db.execute('SELECT 1 FROM uses WHERE word = ? LIMIT 1', (word,)).fetchone()
+                if not still_used:
+                    # If old word is not used anywhere else, remove it from words table
+                    db.execute('DELETE FROM words WHERE word = ?', (word,))
+                
                 # Use the new word for the rest of the updates
                 word = new_word
 
             # Update use flag - note that unchecked checkboxes don't appear in form data
             use_word = bool(request.form.get(f'word_use_{word}'))
-            db.execute('UPDATE words SET use = ? WHERE word = ?', 
-                      (1 if use_word else 0, word))
+            db.execute('''
+                UPDATE uses 
+                SET use = ?
+                WHERE word = ? AND episode_id = ?
+            ''', (1 if use_word else 0, word, episode_id))
 
             # Update definition if word is being used
             if use_word:
@@ -407,22 +421,18 @@ def edit(episode_id):
         WITH FirstAppearance AS (
             SELECT 
                 w.word,
-                MIN(u.id) as first_appearance_id,
+                MIN(u.appearance_order) as first_appearance,
                 MIN(u.original_word) as original_word,
-                MIN(u.definition) as definition
+                MIN(u.definition) as definition,
+                MAX(u.use) as use
             FROM words w
             JOIN uses u ON w.word = u.word
             WHERE u.episode_id = ? AND w.is_vocabulary = 1
             GROUP BY w.word
         )
-        SELECT 
-            fa.word,
-            w.use,
-            fa.original_word,
-            fa.definition
-        FROM FirstAppearance fa
-        JOIN words w ON w.word = fa.word
-        ORDER BY fa.first_appearance_id
+        SELECT word, use, original_word, definition
+        FROM FirstAppearance
+        ORDER BY first_appearance
     ''', (episode_id,)).fetchall()
 
     # Get definitions for each word

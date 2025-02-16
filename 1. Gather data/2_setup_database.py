@@ -9,8 +9,7 @@ cursor.execute('''
 CREATE TABLE IF NOT EXISTS words (
     word TEXT PRIMARY KEY,
     count INTEGER DEFAULT 0,
-    is_vocabulary BOOLEAN DEFAULT NULL,
-    use BOOLEAN DEFAULT FALSE
+    is_vocabulary BOOLEAN DEFAULT NULL
 )
 ''')
 
@@ -33,6 +32,8 @@ CREATE TABLE IF NOT EXISTS uses (
     original_word TEXT,
     episode_id TEXT,
     definition TEXT,
+    use BOOLEAN DEFAULT FALSE,
+    appearance_order INTEGER,
     FOREIGN KEY (word) REFERENCES words(word),
     FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
 )
