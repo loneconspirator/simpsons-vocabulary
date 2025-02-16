@@ -39,7 +39,7 @@ def get_episode(episode_id):
         return jsonify({'error': 'Episode not found'}), 404
 
     words = db.execute('''
-        SELECT w.word, u.original_word as original_form,
+        SELECT DISTINCT w.word, u.original_word as original_form,
                u.use as is_used, u.definition as selected_definition
         FROM words w
         INNER JOIN uses u ON w.word = u.word
@@ -61,12 +61,14 @@ def get_episode(episode_id):
 def get_all_episode_words(episode_id):
     db = get_db()
     words = db.execute('''
-        SELECT w.word, u.original_word as original_form,
-               u.use as is_used, w.is_vocabulary
+        SELECT DISTINCT w.word, u.original_word as original_form,
+               u.use as is_used, w.is_vocabulary,
+               MIN(u.appearance_order) as first_appearance
         FROM words w
         INNER JOIN uses u ON w.word = u.word
         WHERE u.episode_id = ?
-        ORDER BY u.appearance_order
+        GROUP BY w.word, u.original_word, u.use, w.is_vocabulary
+        ORDER BY first_appearance
     ''', [episode_id]).fetchall()
     
     return jsonify([dict(word) for word in words])

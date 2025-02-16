@@ -87,6 +87,10 @@ async function editEpisode(episodeId) {
 function renderWordList(words) {
     const wordList = document.getElementById('word-list');
     wordList.innerHTML = `
+        <div class="word-list-header">
+            <h2>Vocabulary Words</h2>
+            <a href="#" onclick="showAllWords(); return false;" class="show-all-link">Show All Words</a>
+        </div>
         ${words.map(word => `
             <div class="word-item">
                 <div class="word-header">
@@ -253,6 +257,71 @@ function cancelEdit(word) {
     editBox.style.display = 'none';
     editLink.textContent = 'edit';
     editLink.onclick = () => editWord(word);
+}
+
+// Show all words in episode
+async function showAllWords() {
+    const response = await fetch(`/api/episodes/${currentEpisode.episode_id}/all-words`);
+    const words = await response.json();
+    
+    const wordList = document.getElementById('word-list');
+    wordList.innerHTML = `
+        <div class="word-list-header">
+            <h2>All Words</h2>
+            <a href="#" onclick="showVocabularyWords(); return false;" class="show-vocab-link">Show Vocabulary Only</a>
+        </div>
+        <div class="word-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Word</th>
+                        <th>Used</th>
+                        <th>Vocabulary</th>
+                        <th>Original Form</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${words.map(word => `
+                        <tr>
+                            <td>${word.word}</td>
+                            <td>
+                                <input type="checkbox" 
+                                       onchange="toggleWordUse('${word.word}', this.checked)"
+                                       ${word.is_used ? 'checked' : ''}>
+                            </td>
+                            <td>
+                                <input type="checkbox" 
+                                       onchange="toggleWordVocabulary('${word.word}', this.checked)"
+                                       ${word.is_vocabulary ? 'checked' : ''}>
+                            </td>
+                            <td>${word.original_form || ''}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="back-link-container">
+            <a href="#" onclick="returnToEpisodeList(); return false;" class="back-link">Back to Episode List</a>
+        </div>
+    `;
+}
+
+// Show vocabulary words only
+async function showVocabularyWords() {
+    const response = await fetch(`/api/episodes/${currentEpisode.episode_id}`);
+    const episode = await response.json();
+    renderWordList(episode.words);
+}
+
+// Toggle word vocabulary status
+async function toggleWordVocabulary(word, isVocabulary) {
+    await fetch(`/api/words/${word}/vocabulary`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_vocabulary: isVocabulary })
+    });
 }
 
 // API calls
