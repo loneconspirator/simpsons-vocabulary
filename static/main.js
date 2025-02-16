@@ -89,41 +89,59 @@ function renderWordList(words) {
     wordList.innerHTML = `
         <div class="word-list-header">
             <h2>Vocabulary Words</h2>
-            <a href="#" onclick="showAllWords(); return false;" class="show-all-link">Show All Words</a>
-        </div>
-        ${words.map(word => `
-            <div class="word-item">
-                <div class="word-header">
-                    <input type="checkbox" 
-                           onchange="toggleDefinitions('${word.word}')"
-                           ${word.is_used ? 'checked' : ''}
-                           id="word_use_${word.word}"
-                           name="word_use_${word.word}">
-                    <span id="word_text_${word.word}">${word.word}</span>
+            <div class="word-list-actions">
+                <div class="add-word-form">
                     <input type="text" 
-                           class="word-edit-box"
-                           id="word_edit_${word.word}">
-                    <a href="#" 
-                       class="edit-link"
-                       id="word_edit_link_${word.word}"
-                       onclick="editWord('${word.word}', event); return false;">edit</a>
-                    ${word.original_form && word.original_form !== word.word ? 
-                        `<span class="original-form">(${word.original_form})</span>` : ''}
+                           id="new-word-input" 
+                           placeholder="Add new word..."
+                           onkeydown="if (event.key === 'Enter') addNewWord()">
+                    <button onclick="addNewWord()">Add</button>
                 </div>
-                <div class="definitions" id="definitions_${word.word}">
-                    ${word.definitions.map((def, idx) => `
-                        <div class="definition-option">
-                            <input type="radio" 
-                                   name="word_definition_${word.word}"
-                                   value="${def}"
-                                   ${word.selected_definition === def ? 'checked' : ''}
-                                   onchange="saveDefinitionSelection('${word.word}', '${def}')">
-                            <label>${def}</label>
-                        </div>
-                    `).join('')}
-                </div>
+                <a href="#" onclick="showAllWords(); return false;" class="show-all-link">Show All Words</a>
             </div>
-        `).join('')}
+        </div>
+        <div class="word-items-container">
+            ${words.map((word, index) => `
+                <div class="word-item" 
+                     draggable="true"
+                     data-word="${word.word}"
+                     data-order="${index + 1}"
+                     ondragstart="handleDragStart(event)"
+                     ondragover="handleDragOver(event)"
+                     ondrop="handleDrop(event)">
+                    <div class="word-header">
+                        <div class="drag-handle">⋮⋮</div>
+                        <input type="checkbox" 
+                               onchange="toggleDefinitions('${word.word}')"
+                               ${word.is_used ? 'checked' : ''}
+                               id="word_use_${word.word}"
+                               name="word_use_${word.word}">
+                        <span id="word_text_${word.word}">${word.word}</span>
+                        <input type="text" 
+                               class="word-edit-box"
+                               id="word_edit_${word.word}">
+                        <a href="#" 
+                           class="edit-link"
+                           id="word_edit_link_${word.word}"
+                           onclick="editWord('${word.word}', event); return false;">edit</a>
+                        ${word.original_form && word.original_form !== word.word ? 
+                            `<span class="original-form">(${word.original_form})</span>` : ''}
+                    </div>
+                    <div class="definitions" id="definitions_${word.word}">
+                        ${word.definitions.map((def, idx) => `
+                            <div class="definition-option">
+                                <input type="radio" 
+                                       name="word_definition_${word.word}"
+                                       value="${def}"
+                                       ${word.selected_definition === def ? 'checked' : ''}
+                                       onchange="saveDefinitionSelection('${word.word}', '${def}')">
+                                <label>${def}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
         <div class="back-link-container">
             <a href="#" onclick="returnToEpisodeList(); return false;" class="back-link">Back to Episode List</a>
         </div>
@@ -140,6 +158,129 @@ function renderWordList(words) {
             }
         });
     }, 0);
+}
+
+// Drag and drop handlers
+let draggedItem = null;
+
+function handleDragStart(event) {
+    draggedItem = event.target.closest('.word-item');
+    event.dataTransfer.effectAllowed = 'move';
+    event.target.classList.add('dragging');
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    const wordItem = event.target.closest('.word-item');
+    if (!wordItem || wordItem === draggedItem) return;
+    
+    const container = wordItem.parentNode;
+    const rect = wordItem.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    
+    if (event.clientY < midpoint) {
+        wordItem.classList.add('drag-above');
+        wordItem.classList.remove('drag-below');
+    } else {
+        wordItem.classList.add('drag-below');
+        wordItem.classList.remove('drag-above');
+    }
+}
+
+async function handleDrop(event) {
+    event.preventDefault();
+    const wordItem = event.target.closest('.word-item');
+    if (!wordItem || !draggedItem || wordItem === draggedItem) return;
+    
+    // Remove drag indicators
+    document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
+        el.classList.remove('drag-above', 'drag-below');
+    });
+    draggedItem.classList.remove('dragging');
+    
+    const container = wordItem.parentNode;
+    const items = Array.from(container.children);
+    const draggedIndex = items.indexOf(draggedItem);
+    const dropIndex = items.indexOf(wordItem);
+    
+    // Determine if we're dropping above or below the target
+    const rect = wordItem.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const dropAfter = event.clientY > midpoint;
+    
+    // Move the dragged item to its new position
+    if (dropAfter) {
+        wordItem.insertAdjacentElement('afterend', draggedItem);
+    } else {
+        wordItem.insertAdjacentElement('beforebegin', draggedItem);
+    }
+    
+    // Update appearance orders in the database
+    const wordOrders = Array.from(container.children).map((item, index) => ({
+        word: item.dataset.word,
+        order: index + 1
+    }));
+    
+    try {
+        const response = await fetch(`/api/episodes/${currentEpisode.episode_id}/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ wordOrders })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update word order');
+        }
+    } catch (error) {
+        console.error('Error updating word order:', error);
+        // Revert the UI change on error
+        const episode = await fetch(`/api/episodes/${currentEpisode.episode_id}`).then(r => r.json());
+        renderWordList(episode.words);
+    }
+}
+
+function handleDragEnd(event) {
+    document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
+        el.classList.remove('drag-above', 'drag-below');
+    });
+    event.target.classList.remove('dragging');
+}
+
+// Add a new word
+async function addNewWord() {
+    const input = document.getElementById('new-word-input');
+    const word = input.value.trim();
+    
+    if (!word) return;
+    
+    try {
+        const response = await fetch(`/api/episodes/${currentEpisode.episode_id}/uses`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ word })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to add word');
+        }
+        
+        const wordData = await response.json();
+        
+        // Add the new word to the current episode's word list
+        const episode = await fetch(`/api/episodes/${currentEpisode.episode_id}`).then(r => r.json());
+        renderWordList(episode.words);
+        
+        // Clear the input
+        input.value = '';
+        
+    } catch (error) {
+        console.error('Error adding word:', error);
+        alert('Failed to add word. Please try again.');
+    }
 }
 
 // Return to episode list

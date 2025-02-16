@@ -157,5 +157,78 @@ def update_word_vocabulary(word):
     
     return jsonify({'error': 'is_vocabulary not provided'}), 400
 
+@app.route('/api/episodes/<string:episode_id>/uses', methods=['POST'])
+def create_word_use(episode_id):
+    """Create a new word use for an episode. If the word doesn't exist, create it."""
+    data = request.get_json()
+    word = data.get('word', '').strip().lower()
+    
+    if not word:
+        return jsonify({'error': 'Word is required'}), 400
+        
+    db = get_db()
+    try:
+        # First, ensure the word exists in the words table
+        db.execute('''
+            INSERT OR IGNORE INTO words (word, is_vocabulary)
+            VALUES (?, 0)
+        ''', [word])
+        
+        # Get the max appearance_order for this episode
+        max_order = db.execute('''
+            SELECT COALESCE(MAX(appearance_order), 0)
+            FROM uses
+            WHERE episode_id = ?
+        ''', [episode_id]).fetchone()[0]
+        
+        # Create the use
+        db.execute('''
+            INSERT INTO uses (word, episode_id, use, appearance_order)
+            VALUES (?, ?, 0, ?)
+        ''', [word, episode_id, max_order + 1])
+        
+        db.commit()
+        
+        # Return the new word with its definitions
+        word_data = {
+            'word': word,
+            'is_used': False,
+            'definitions': get_word_definitions(word)
+        }
+        return jsonify(word_data)
+        
+    except sqlite3.Error as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/episodes/<string:episode_id>/reorder', methods=['POST'])
+def reorder_words(episode_id):
+    """Update the appearance_order of words in an episode."""
+    data = request.get_json()
+    word_orders = data.get('wordOrders', [])
+    
+    if not word_orders:
+        return jsonify({'error': 'No word orders provided'}), 400
+        
+    db = get_db()
+    try:
+        # Update each word's appearance_order
+        for order in word_orders:
+            word = order.get('word')
+            new_order = order.get('order')
+            if word is not None and new_order is not None:
+                db.execute('''
+                    UPDATE uses 
+                    SET appearance_order = ? 
+                    WHERE word = ? AND episode_id = ?
+                ''', [new_order, word, episode_id])
+        
+        db.commit()
+        return jsonify({'success': True})
+        
+    except sqlite3.Error as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

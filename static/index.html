@@ -71,11 +71,42 @@
         .word-list-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         .word-list-header h2 {
             margin: 0;
+        }
+        .word-list-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+        .add-word-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .add-word-form input {
+            padding: 0.375rem 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            font-size: 0.9em;
+            min-width: 200px;
+        }
+        .add-word-form button {
+            padding: 0.375rem 0.75rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .add-word-form button:hover {
+            background-color: #0056b3;
         }
         .show-all-link, .show-vocab-link {
             color: #007bff;
@@ -106,6 +137,47 @@
         }
         .word-table tr:hover {
             background-color: #f8f9fa;
+        }
+        .word-items-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .word-item {
+            cursor: grab;
+            position: relative;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .word-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .word-item.drag-above {
+            border-top: 2px solid #007bff;
+        }
+        .word-item.drag-below {
+            border-bottom: 2px solid #007bff;
+        }
+        .drag-handle {
+            cursor: grab;
+            color: #999;
+            font-size: 1.2em;
+            padding: 0 0.5rem;
+            display: inline-block;
+            vertical-align: middle;
+            user-select: none;
+        }
+        .drag-handle:hover {
+            color: #666;
+        }
+        .word-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
     </style>
 </head>
