@@ -70,40 +70,39 @@ def get_word_definitions(word: str) -> List[str]:
                 
                 # Extract usage labels before removing templates
                 usage_labels = []
-                for label_match in re.finditer(r'\{\{lb\|en\|([^}]+)\}\}', definition):
-                    usage_labels.append(label_match.group(1))
+                for label_match in re.finditer(r'\{\{(?:lb|label)\|en\|([^}]+)\}\}', definition):
+                    label = label_match.group(1)
+                    # Don't add duplicate labels
+                    if label.lower() not in (l.lower() for l in usage_labels):
+                        usage_labels.append(label)
                 
-                # Handle capitalization template {{cap|word}}
-                cap_match = re.search(r'\{\{cap\|([^}]+)\}\}', definition)
-                if cap_match:
-                    cap_word = cap_match.group(1)
-                    definition = re.sub(r'\{\{cap\|[^}]+\}\}', cap_word, definition)
+                # Handle special templates before removing others
+                special_templates = {
+                    'non-gloss': r'\{\{non-gloss\|((?:[^{}]|\{\{[^{}]*\}\})*)\}\}',
+                    'l': r'\{\{l\|en\|([^}|]+)(?:\|[^}]*)*\}\}',  # {{l|en|word|...}}
+                    'cap': r'\{\{cap\|([^}]+)\}\}',  # {{cap|Word}}
+                }
                 
-                # Handle non-gloss definitions specially - use a more precise regex
-                non_gloss_match = re.search(r'\{\{non-gloss\|((?:[^{}]|\{\{[^{}]*\}\})*)\}\}', definition)
-                if non_gloss_match:
-                    # Extract content and handle special characters like commas
-                    content = non_gloss_match.group(1)
-                    # Replace {{,}} with actual comma
-                    content = re.sub(r'\{\{,\}\}', ',', content)
-                    # Handle any remaining nested templates
-                    content = re.sub(r'\{\{[^{}]*\}\}', '', content)
-                    definition = content
+                for template_type, pattern in special_templates.items():
+                    if template_type == 'non-gloss':
+                        non_gloss_match = re.search(pattern, definition)
+                        if non_gloss_match:
+                            content = non_gloss_match.group(1)
+                            content = re.sub(r'\{\{,\}\}', ',', content)
+                            content = re.sub(r'\{\{[^{}]*\}\}', '', content)
+                            definition = content
+                    else:
+                        definition = re.sub(pattern, r'\1', definition)
                 
-                # Handle links [[word|display]] -> display
+                # Handle links [[word|display]] -> display and [[word]] -> word
                 definition = re.sub(r'\[\[[^]|]+\|([^]]+)\]\]', r'\1', definition)
-                
-                # Handle simple links [[word]] -> word
                 definition = re.sub(r'\[\[([^]]+)\]\]', r'\1', definition)
-                
-                # Remove quotes and other markup
-                definition = re.sub(r"''([^']+)''", r'\1', definition)
                 
                 # Remove references <ref>...</ref>
                 definition = re.sub(r'<ref>.*?</ref>', '', definition)
                 
-                # Remove wiki templates {{...}} - handle nested braces AFTER extracting labels
-                definition = re.sub(r'\{\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\}', '', definition)
+                # Remove remaining wiki templates {{...}} - handle nested braces
+                definition = re.sub(r'\{\{(?!l\|en)[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\}', '', definition)
                 
                 # Remove any remaining templates or markup
                 definition = re.sub(r'[{}[\]<>]', '', definition)
@@ -115,6 +114,10 @@ def get_word_definitions(word: str) -> List[str]:
                 definition = definition.strip()
                 # Remove leading commas and whitespace
                 definition = re.sub(r'^,\s*', '', definition)
+                
+                # Remove duplicate words at the start (e.g. "Transitive Transitive")
+                definition = re.sub(r'^(\w+)\s+\1\s+', r'\1 ', definition, flags=re.IGNORECASE)
+                
                 if definition and not definition.startswith(('(', '*', '#', ':')):
                     # Capitalize first letter of the definition
                     if len(definition) > 0:

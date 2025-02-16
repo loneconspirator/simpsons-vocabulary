@@ -127,5 +127,51 @@ class TestDictionaryUtils(unittest.TestCase):
         for i, definition in enumerate(definitions, 1):
             print(f"{i}. {definition}")
 
+    def test_get_word_definitions_visualise(self):
+        # Get definitions for the word "visualise"
+        definitions = get_word_definitions("visualise")
+        
+        # Print actual definitions for debugging
+        print("\nActual definitions found for 'visualise':")
+        for i, definition in enumerate(definitions, 1):
+            print(f"{i}. {definition}")
+        
+        # Verify we got exactly two definitions
+        self.assertEqual(len(definitions), 2, "Should have found exactly two definitions for 'visualise'")
+        
+        # Expected definitions
+        expected_definitions = [
+            "Verb: (transitive) To envisage; to form a mental picture of.",
+            "Verb: (transitive) To make (something) visible."
+        ]
+        
+        # Verify each definition matches exactly
+        for expected, actual in zip(expected_definitions, definitions):
+            self.assertEqual(actual, expected, 
+                           f"Definition should be exactly '{expected}'")
+
+    def test_get_word_definitions_visualize(self):
+        # Get definitions for the word "visualize" (American spelling)
+        definitions = get_word_definitions("visualize")
+        
+        # Print actual definitions for debugging
+        print("\nActual definitions found for 'visualize':")
+        for i, definition in enumerate(definitions, 1):
+            print(f"{i}. {definition}")
+        
+        # Verify we got exactly two definitions
+        self.assertEqual(len(definitions), 2, "Should have found exactly two definitions for 'visualize'")
+        
+        # Expected definitions
+        expected_definitions = [
+            "Verb: (transitive) To form a mental picture of; to imagine.",
+            "Verb: (transitive) To make visible."
+        ]
+        
+        # Verify each definition matches exactly
+        for expected, actual in zip(expected_definitions, definitions):
+            self.assertEqual(actual, expected, 
+                           f"Definition should be exactly '{expected}'")
+
 if __name__ == '__main__':
     unittest.main()
