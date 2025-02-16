@@ -17,7 +17,7 @@
         .original-form { color: #666; margin-left: 0.5rem; }
         .definitions { margin-left: 2rem; margin-top: 0.5rem; display: none; }
         .definitions.show { display: block; }
-        .definition-option { margin: 0.5rem 0; display: flex; align-items: flex-start; }
+        .definition-option { margin: 5px 0; display: flex; align-items: flex-start; gap: 8px; }
         .definition-option input[type="radio"] { margin-top: 0.25rem; margin-right: 0.5rem; }
         .definition-option label { margin: 0; }
         .season-header {
@@ -178,6 +178,29 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+        }
+        .custom-definition {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        .custom-definition-input {
+            flex: 1;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            margin-right: 10px;
+        }
+
+        .custom-definition-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
         }
     </style>
 </head>

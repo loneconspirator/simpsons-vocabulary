@@ -139,6 +139,17 @@ function renderWordList(words) {
                                 <label>${def}</label>
                             </div>
                         `).join('')}
+                        <div class="definition-option custom-definition">
+                            <input type="radio" 
+                                   name="word_definition_${word.word}"
+                                   value="custom"
+                                   ${word.selected_definition && !word.definitions.includes(word.selected_definition) ? 'checked' : ''}>
+                            <textarea class="custom-definition-input"
+                                    id="custom_definition_${word.word}"
+                                    placeholder="Enter custom definition..."
+                                    onfocus="handleCustomDefinitionFocus(event, '${word.word}')"
+                                    onblur="handleCustomDefinitionBlur(event, '${word.word}')">${word.selected_definition && !word.definitions.includes(word.selected_definition) ? word.selected_definition : ''}</textarea>
+                        </div>
                     </div>
                 </div>
             `).join('')}
@@ -523,6 +534,25 @@ async function toggleWordVocabulary(word, isVocabulary) {
         },
         body: JSON.stringify({ is_vocabulary: isVocabulary })
     });
+}
+
+// Handle custom definition focus
+function handleCustomDefinitionFocus(event, word) {
+    // Select the associated radio button when the text area is focused
+    const radio = event.target.parentElement.querySelector('input[type="radio"]');
+    radio.checked = true;
+}
+
+// Handle custom definition blur
+async function handleCustomDefinitionBlur(event, word) {
+    const customDefinition = event.target.value.trim();
+    if (customDefinition) {
+        // Only save if there's actually a definition entered
+        const radio = event.target.parentElement.querySelector('input[type="radio"]');
+        if (radio.checked) {
+            await saveDefinitionSelection(word, customDefinition);
+        }
+    }
 }
 
 // API calls
