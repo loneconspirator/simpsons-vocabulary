@@ -103,16 +103,17 @@ function renderWordList(words) {
         <div class="word-items-container">
             ${words.map((word, index) => `
                 <div class="word-item" 
-                     draggable="true"
                      data-word="${word.word}"
                      data-order="${index + 1}"
-                     ondragstart="handleDragStart(event)"
                      ondragover="handleDragOver(event)"
                      ondrop="handleDrop(event)">
                     <div class="word-header">
-                        <div class="drag-handle">⋮⋮</div>
+                        <div class="drag-handle"
+                             draggable="true"
+                             ondragstart="handleDragStart(event)"
+                             ondragend="handleDragEnd(event)">⋮⋮</div>
                         <input type="checkbox" 
-                               onchange="toggleDefinitions('${word.word}')"
+                               onchange="handleWordUseChange(event, '${word.word}')"
                                ${word.is_used ? 'checked' : ''}
                                id="word_use_${word.word}"
                                name="word_use_${word.word}">
@@ -151,7 +152,7 @@ function renderWordList(words) {
     setTimeout(() => {
         words.forEach(word => {
             if (word.is_used) {
-                toggleDefinitions(word.word);
+                toggleDefinitionsVisibility(word.word, true);
             }
             if (word.selected_definition) {
                 selectedDefinitions[word.word] = word.selected_definition;
@@ -160,24 +161,48 @@ function renderWordList(words) {
     }, 0);
 }
 
+// Toggle definitions visibility without updating use status
+function toggleDefinitionsVisibility(word, show) {
+    const definitions = document.getElementById(`definitions_${word}`);
+    if (definitions) {
+        if (show) {
+            definitions.classList.add('show');
+        } else {
+            definitions.classList.remove('show');
+        }
+    }
+}
+
+// Handle checkbox change
+function handleWordUseChange(event, word) {
+    const isChecked = event.target.checked;
+    toggleDefinitionsVisibility(word, isChecked);
+    updateWordUse(word, isChecked);
+}
+
 // Drag and drop handlers
 let draggedItem = null;
+let isDragging = false;
 
 function handleDragStart(event) {
+    isDragging = true;
+    // Get the word-item parent, not just the handle
     draggedItem = event.target.closest('.word-item');
     event.dataTransfer.effectAllowed = 'move';
-    event.target.classList.add('dragging');
+    draggedItem.classList.add('dragging');
 }
 
 function handleDragOver(event) {
+    if (!isDragging) return;
     event.preventDefault();
+    
     const wordItem = event.target.closest('.word-item');
     if (!wordItem || wordItem === draggedItem) return;
     
-    const container = wordItem.parentNode;
     const rect = wordItem.getBoundingClientRect();
     const midpoint = rect.top + rect.height / 2;
     
+    // Just update visual indicators
     if (event.clientY < midpoint) {
         wordItem.classList.add('drag-above');
         wordItem.classList.remove('drag-below');
@@ -188,7 +213,9 @@ function handleDragOver(event) {
 }
 
 async function handleDrop(event) {
+    if (!isDragging) return;
     event.preventDefault();
+    
     const wordItem = event.target.closest('.word-item');
     if (!wordItem || !draggedItem || wordItem === draggedItem) return;
     
@@ -199,9 +226,6 @@ async function handleDrop(event) {
     draggedItem.classList.remove('dragging');
     
     const container = wordItem.parentNode;
-    const items = Array.from(container.children);
-    const draggedIndex = items.indexOf(draggedItem);
-    const dropIndex = items.indexOf(wordItem);
     
     // Determine if we're dropping above or below the target
     const rect = wordItem.getBoundingClientRect();
@@ -215,7 +239,27 @@ async function handleDrop(event) {
         wordItem.insertAdjacentElement('beforebegin', draggedItem);
     }
     
-    // Update appearance orders in the database
+    // Only update orders once after the drop is complete
+    await updateWordOrders(container);
+    isDragging = false;
+}
+
+function handleDragEnd(event) {
+    if (!isDragging) return;
+    
+    document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
+        el.classList.remove('drag-above', 'drag-below');
+    });
+    
+    if (draggedItem) {
+        draggedItem.classList.remove('dragging');
+        draggedItem = null;
+    }
+    isDragging = false;
+}
+
+// Separate function to update word orders
+async function updateWordOrders(container) {
     const wordOrders = Array.from(container.children).map((item, index) => ({
         word: item.dataset.word,
         order: index + 1
@@ -239,13 +283,6 @@ async function handleDrop(event) {
         const episode = await fetch(`/api/episodes/${currentEpisode.episode_id}`).then(r => r.json());
         renderWordList(episode.words);
     }
-}
-
-function handleDragEnd(event) {
-    document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
-        el.classList.remove('drag-above', 'drag-below');
-    });
-    event.target.classList.remove('dragging');
 }
 
 // Add a new word
@@ -312,22 +349,6 @@ async function returnToEpisodeList() {
     }, 100); // Give DOM time to update
 }
 
-// Toggle definitions visibility
-function toggleDefinitions(word) {
-    const checkbox = document.querySelector(`input[name="word_use_${word}"]`);
-    const definitions = document.getElementById(`definitions_${word}`);
-    
-    if (!checkbox || !definitions) return;
-    
-    if (checkbox.checked) {
-        definitions.classList.add('show');
-        updateWordUse(word, true);
-    } else {
-        definitions.classList.remove('show');
-        updateWordUse(word, false);
-    }
-}
-
 // Save definition selection
 async function saveDefinitionSelection(word, definition) {
     selectedDefinitions[word] = definition;
@@ -389,7 +410,7 @@ async function saveWord(word, event) {
         if (checkbox) {
             checkbox.name = `word_use_${newWord}`;
             checkbox.id = `word_use_${newWord}`;
-            checkbox.onchange = () => toggleDefinitions(newWord);
+            checkbox.onchange = () => handleWordUseChange(event, newWord);
         }
         
         // Update word span
