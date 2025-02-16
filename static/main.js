@@ -106,8 +106,8 @@ function renderWordList(words) {
                     <a href="#" 
                        class="edit-link"
                        id="word_edit_link_${word.word}"
-                       onclick="editWord('${word.word}'); return false;">edit</a>
-                    ${word.original_form ? 
+                       onclick="editWord('${word.word}', event); return false;">edit</a>
+                    ${word.original_form && word.original_form !== word.word ? 
                         `<span class="original-form">(${word.original_form})</span>` : ''}
                 </div>
                 <div class="definitions" id="definitions_${word.word}">
@@ -194,7 +194,9 @@ async function saveDefinitionSelection(word, definition) {
 }
 
 // Edit word
-function editWord(word) {
+function editWord(word, event) {
+    if (event) event.preventDefault();
+    
     const wordSpan = document.getElementById(`word_text_${word}`);
     const editBox = document.getElementById(`word_edit_${word}`);
     const editLink = document.getElementById(`word_edit_link_${word}`);
@@ -208,7 +210,7 @@ function editWord(word) {
     editBox.value = wordSpan.textContent;
     editBox.focus();
     editLink.textContent = 'save';
-    editLink.onclick = () => saveWord(word);
+    editLink.onclick = (e) => saveWord(word, e);
 
     editBox.onkeydown = (e) => {
         if (e.key === 'Escape') {
@@ -220,26 +222,63 @@ function editWord(word) {
 }
 
 // Save edited word
-async function saveWord(word) {
+async function saveWord(word, event) {
+    if (event) event.preventDefault();
+    
     const wordSpan = document.getElementById(`word_text_${word}`);
     const editBox = document.getElementById(`word_edit_${word}`);
     const editLink = document.getElementById(`word_edit_link_${word}`);
     const newWord = editBox.value.trim();
 
     if (newWord && newWord !== word) {
+        // Update the word in the backend
         await updateWord(word, newWord);
         
+        // Update selected definitions if they exist
         if (selectedDefinitions[word]) {
             selectedDefinitions[newWord] = selectedDefinitions[word];
             delete selectedDefinitions[word];
         }
+
+        // Update all DOM elements with the new word
+        const wordItem = wordSpan.closest('.word-item');
+        
+        // Update checkbox
+        const checkbox = wordItem.querySelector(`input[name="word_use_${word}"]`);
+        if (checkbox) {
+            checkbox.name = `word_use_${newWord}`;
+            checkbox.id = `word_use_${newWord}`;
+            checkbox.onchange = () => toggleDefinitions(newWord);
+        }
+        
+        // Update word span
+        wordSpan.id = `word_text_${newWord}`;
+        wordSpan.textContent = newWord;
+        
+        // Update edit box
+        editBox.id = `word_edit_${newWord}`;
+        
+        // Update edit link
+        editLink.id = `word_edit_link_${newWord}`;
+        editLink.onclick = (e) => editWord(newWord, e);
+        
+        // Update definitions container if it exists
+        const definitions = wordItem.querySelector(`#definitions_${word}`);
+        if (definitions) {
+            definitions.id = `definitions_${newWord}`;
+            
+            // Update radio buttons in definitions
+            const radios = definitions.querySelectorAll('input[type="radio"]');
+            radios.forEach(radio => {
+                radio.name = `word_definition_${newWord}`;
+                radio.onchange = () => saveDefinitionSelection(newWord, radio.value);
+            });
+        }
     }
 
-    wordSpan.textContent = newWord;
     wordSpan.style.display = 'inline';
     editBox.style.display = 'none';
     editLink.textContent = 'edit';
-    editLink.onclick = () => editWord(newWord);
 }
 
 // Cancel word edit
@@ -294,7 +333,7 @@ async function showAllWords() {
                                        onchange="toggleWordVocabulary('${word.word}', this.checked)"
                                        ${word.is_vocabulary ? 'checked' : ''}>
                             </td>
-                            <td>${word.original_form || ''}</td>
+                            <td>${word.original_form !== word.word ? word.original_form : ''}</td>
                         </tr>
                     `).join('')}
                 </tbody>
