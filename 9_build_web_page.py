@@ -8,13 +8,12 @@ def get_publishable_episodes():
 
     # Get all publishable episodes with their words
     cursor.execute('''
-        SELECT e.season, e.episode, e.episode_name, e.episode_id, u.word
+        SELECT e.season, e.episode, e.episode_name, e.episode_id, u.word, u.definition
         FROM episodes e
         LEFT JOIN uses u ON e.episode_id = u.episode_id
-          JOIN words w ON u.word = w.word
         WHERE e.publishable = TRUE
-          AND w.use = TRUE
-        ORDER BY e.season, e.episode, u.id
+          AND u.use = TRUE
+        ORDER BY e.season, e.episode, u.appearance_order
     ''')
 
     results = cursor.fetchall()
@@ -27,28 +26,29 @@ def get_unique_seasons(episodes):
 def group_episodes_by_season(episodes):
     episodes_by_season = defaultdict(list)
     current_episode = None
-    episode_words = set()
+    episode_words = {}  # Changed to dict to prevent duplicates, keyed by word
 
-    for season, episode_num, name, episode_id, word in episodes:
+    for season, episode_num, name, episode_id, word, definition in episodes:
         # If we're starting a new episode
         if episode_id != current_episode:
             # If we had a previous episode, save it
             if current_episode is not None:
-                episodes_by_season[current_season].append((current_episode_num, current_name, list(episode_words)))
+                episodes_by_season[current_season].append((current_episode_num, current_name, list(episode_words.values())))
             # Start new episode
             current_episode = episode_id
             current_season = season
             current_episode_num = episode_num
             current_name = name
-            episode_words = set()
+            episode_words = {}
 
-        # Add word to current episode if it exists
+        # Add word and definition to current episode if they exist
         if word:
-            episode_words.add(word)
+            # Keep only the latest definition for a word
+            episode_words[word] = (word, definition if definition else '')
 
     # Don't forget to add the last episode
     if current_episode is not None:
-        episodes_by_season[current_season].append((current_episode_num, current_name, list(episode_words)))
+        episodes_by_season[current_season].append((current_episode_num, current_name, list(episode_words.values())))
 
     return episodes_by_season
 
@@ -72,10 +72,12 @@ def generate_html(seasons, episodes_by_season):
         for episode_num, name, words in episodes_by_season[season]:
             # Generate vocabulary items HTML
             vocab_items = []
-            for word in words:
+            for word, definition in words:
+                definition_html = f'<div class="definition">{definition}</div>' if definition else ''
                 vocab_items.append(f'''
                 <div class="vocabulary-item">
                     <div class="word">{word}</div>
+                    {definition_html}
                 </div>''')
             vocab_html = ''.join(vocab_items)
 
@@ -101,6 +103,9 @@ def generate_html(seasons, episodes_by_season):
         episode_cards_html +
         template[main_end - 1:]
     )
+
+    # Create web directory if it doesn't exist
+    os.makedirs('web', exist_ok=True)
 
     # Write the output file
     with open('web/index.html', 'w') as f:
