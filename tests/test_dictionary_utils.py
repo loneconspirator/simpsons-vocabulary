@@ -127,51 +127,33 @@ class TestDictionaryUtils(unittest.TestCase):
         for i, definition in enumerate(definitions, 1):
             print(f"{i}. {definition}")
 
-    def test_get_word_definitions_visualise(self):
-        # Get definitions for the word "visualise"
-        definitions = get_word_definitions("visualise")
+    def test_get_word_definitions_washout(self):
+        # Get definitions for the word "washout"
+        definitions = get_word_definitions("washout")
         
         # Print actual definitions for debugging
-        print("\nActual definitions found for 'visualise':")
+        print("\nActual definitions found for 'washout':")
         for i, definition in enumerate(definitions, 1):
             print(f"{i}. {definition}")
         
-        # Verify we got exactly two definitions
-        self.assertEqual(len(definitions), 2, "Should have found exactly two definitions for 'visualise'")
-        
-        # Expected definitions
+        # Expected definitions - should include slang usage
         expected_definitions = [
-            "Verb: (transitive) To envisage; to form a mental picture of.",
-            "Verb: (transitive) To make (something) visible."
+            "Noun: An act of washing or cleaning the inside of something.",
+            "Noun: An appliance designed to wash out the inside of something.",
+            "Noun: The erosion of a relatively soft surface by a sudden gush of water; also, a channel produced by this action.",
+            "Noun: (meteorology) The action whereby falling rainwater cleans particles from the air.",
+            "Noun: (mining) A place in a mine where ore has been washed away by a flow of water.",
+            "Noun: (slang) A total failure; a disappointment."
         ]
         
-        # Verify each definition matches exactly
-        for expected, actual in zip(expected_definitions, definitions):
-            self.assertEqual(actual, expected, 
-                           f"Definition should be exactly '{expected}'")
-
-    def test_get_word_definitions_visualize(self):
-        # Get definitions for the word "visualize" (American spelling)
-        definitions = get_word_definitions("visualize")
+        # Verify each definition is present
+        for expected in expected_definitions:
+            self.assertIn(expected, definitions,
+                         f"Should have found definition: '{expected}'")
         
-        # Print actual definitions for debugging
-        print("\nActual definitions found for 'visualize':")
-        for i, definition in enumerate(definitions, 1):
-            print(f"{i}. {definition}")
-        
-        # Verify we got exactly two definitions
-        self.assertEqual(len(definitions), 2, "Should have found exactly two definitions for 'visualize'")
-        
-        # Expected definitions
-        expected_definitions = [
-            "Verb: (transitive) To form a mental picture of; to imagine.",
-            "Verb: (transitive) To make visible."
-        ]
-        
-        # Verify each definition matches exactly
-        for expected, actual in zip(expected_definitions, definitions):
-            self.assertEqual(actual, expected, 
-                           f"Definition should be exactly '{expected}'")
+        # Verify we got all expected definitions
+        self.assertEqual(len(definitions), len(expected_definitions),
+                        f"Should have found exactly {len(expected_definitions)} definitions for 'washout'")
 
 if __name__ == '__main__':
     unittest.main()

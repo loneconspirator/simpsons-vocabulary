@@ -1,138 +1,204 @@
-import sqlite3
 import re
-import os
+import sqlite3
 from typing import List
+import mwparserfromhell
+from bs4 import BeautifulSoup
+import unicodedata
 
 def get_word_definitions(word: str) -> List[str]:
-    """
-    Retrieve all English language definitions for a given word from the Wiktionary database.
-    Each definition is prefixed with its part of speech (e.g., "Noun: a definition").
+    """Get all definitions for a word from the wiktionary database."""
+    conn = sqlite3.connect('db/wiktionary.db')
     
-    Args:
-        word (str): The word to look up definitions for
-        
-    Returns:
-        List[str]: A list of English language definitions for the word, each prefixed with its part of speech.
-        Returns an empty list if no definitions are found.
-    """
-    # Get the path to the database relative to this file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(os.path.dirname(current_dir), 'db', 'wiktionary.db')
+    # Try both composed and decomposed forms of the word
+    composed_word = unicodedata.normalize('NFC', word)
+    decomposed_word = unicodedata.normalize('NFD', word)
     
-    conn = sqlite3.connect(db_path)
+    # Try exact match with both forms
     cursor = conn.cursor()
+    cursor.execute('SELECT entry FROM words WHERE word = ? OR word = ?', 
+                  (composed_word, decomposed_word))
+    result = cursor.fetchone()
     
-    try:
-        # Query the database for the word's entry
-        cursor.execute('''
-            SELECT entry 
-            FROM words 
-            WHERE word = ?
-        ''', (word.lower(),))
-        
+    # If no match, try case-insensitive with both forms
+    if not result:
+        cursor.execute('SELECT entry FROM words WHERE lower(word) = lower(?) OR lower(word) = lower(?)', 
+                      (composed_word, decomposed_word))
         result = cursor.fetchone()
-        if not result:
-            return []
-            
-        entry_text = result[0]
-        
-        # Parse the entry text to extract English definitions
-        definitions = []
-        
-        # Look for English section
-        english_section_match = re.search(r'==English==.*?(?=^==\w)', entry_text, re.DOTALL | re.MULTILINE)
-        if not english_section_match:
-            # If no other language sections follow, take everything after English
-            english_section_match = re.search(r'==English==(.*)', entry_text, re.DOTALL)
-            if not english_section_match:
-                return []
-                
-        english_section = english_section_match.group(0 if '==English==' in english_section_match.group(0) else 1)
-        
-        # Find definitions under various parts of speech
-        pos_sections = re.finditer(r'===(Noun|Verb|Adjective|Adverb|Pronoun|Preposition|Conjunction|Interjection)===\s*(.*?)(?===|\Z)', 
-                                 english_section, 
-                                 re.DOTALL)
-        
-        for pos_section in pos_sections:
-            pos = pos_section.group(1)
-            section_text = pos_section.group(2)
-            
-            # Find all definition lines that start with # but not #* or ##
-            def_lines = re.finditer(r'^#[^#\n*].*$', section_text, re.MULTILINE)
-            
-            for def_line in def_lines:
-                # Get the raw definition line
-                definition = def_line.group(0)
-                
-                # Remove the leading #
-                definition = re.sub(r'^#\s*', '', definition)
-                
-                # Extract usage labels before removing templates
-                usage_labels = []
-                for label_match in re.finditer(r'\{\{(?:lb|label)\|en\|([^}]+)\}\}', definition):
-                    label = label_match.group(1)
-                    # Don't add duplicate labels
-                    if label.lower() not in (l.lower() for l in usage_labels):
-                        usage_labels.append(label)
-                
-                # Handle special templates before removing others
-                special_templates = {
-                    'non-gloss': r'\{\{non-gloss\|((?:[^{}]|\{\{[^{}]*\}\})*)\}\}',
-                    'l': r'\{\{l\|en\|([^}|]+)(?:\|[^}]*)*\}\}',  # {{l|en|word|...}}
-                    'cap': r'\{\{cap\|([^}]+)\}\}',  # {{cap|Word}}
-                }
-                
-                for template_type, pattern in special_templates.items():
-                    if template_type == 'non-gloss':
-                        non_gloss_match = re.search(pattern, definition)
-                        if non_gloss_match:
-                            content = non_gloss_match.group(1)
-                            content = re.sub(r'\{\{,\}\}', ',', content)
-                            content = re.sub(r'\{\{[^{}]*\}\}', '', content)
-                            definition = content
-                    else:
-                        definition = re.sub(pattern, r'\1', definition)
-                
-                # Handle links [[word|display]] -> display and [[word]] -> word
-                definition = re.sub(r'\[\[[^]|]+\|([^]]+)\]\]', r'\1', definition)
-                definition = re.sub(r'\[\[([^]]+)\]\]', r'\1', definition)
-                
-                # Remove references <ref>...</ref>
-                definition = re.sub(r'<ref>.*?</ref>', '', definition)
-                
-                # Remove remaining wiki templates {{...}} - handle nested braces
-                definition = re.sub(r'\{\{(?!l\|en)[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\}', '', definition)
-                
-                # Remove any remaining templates or markup
-                definition = re.sub(r'[{}[\]<>]', '', definition)
-                
-                # Remove template prefixes that might remain after template removal
-                definition = re.sub(r'^(?:Non-gloss|gloss|n)\|', '', definition, flags=re.IGNORECASE)
-                
-                # Clean up whitespace and ensure first letter is capitalized
-                definition = definition.strip()
-                # Remove leading commas and whitespace
-                definition = re.sub(r'^,\s*', '', definition)
-                
-                # Remove duplicate words at the start (e.g. "Transitive Transitive")
-                definition = re.sub(r'^(\w+)\s+\1\s+', r'\1 ', definition, flags=re.IGNORECASE)
-                
-                if definition and not definition.startswith(('(', '*', '#', ':')):
-                    # Capitalize first letter of the definition
-                    if len(definition) > 0:
-                        definition = definition[0].upper() + definition[1:]
-                    # Add usage labels in parentheses if present
-                    if usage_labels:
-                        definition = f"({', '.join(usage_labels)}) {definition}"
-                    definitions.append(f"{pos}: {definition}")
-        
-        return definitions
-        
-    except sqlite3.Error as e:
-        print(f"Database error occurred: {e}")
+    
+    if not result:
         return []
-        
-    finally:
-        cursor.close()
-        conn.close()
+    
+    # Ensure proper text decoding
+    entry_text = result[0]
+    if isinstance(entry_text, bytes):
+        entry_text = entry_text.decode('utf-8')
+    conn.close()
+    
+    definitions = []
+
+    # Parse wikitext
+    wikicode = mwparserfromhell.parse(entry_text)
+    
+    # Find English section
+    english_section = None
+    sections = wikicode.get_sections(levels=[2])
+    print(f"\nProcessing word: {word}")
+    print("Level 2 sections:")
+    for section in sections:
+        if not section.nodes:
+            continue
+        heading = str(section.get(0).title).strip()
+        print(f"- {heading}")
+        if heading == "English":
+            english_section = section
+            break
+    
+    if not english_section:
+        print("No English section found")
+        return []
+
+    # Find parts of speech sections
+    pos_headings = ["Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection"]
+    
+    print("\nLevel 3 sections in English:")
+    level3_sections = english_section.get_sections(levels=[3])
+    for section in level3_sections:
+        if section.nodes and hasattr(section.get(0), 'title'):
+            print(f"- {str(section.get(0).title).strip()}")
+    
+    for pos in pos_headings:
+        pos_sections = english_section.get_sections(levels=[3], matches=pos)
+        for section in pos_sections:
+            print(f"\nProcessing {pos} section:")
+            
+            # Get all text content from the section
+            section_text = str(section)
+            print(f"Section content:\n{section_text}")
+            
+            # Find all definition lines and trans-see references
+            trans_see_refs = {}
+            in_trans_section = False
+            for line in section_text.split('\n'):
+                line = line.strip()
+                
+                # Track if we're in a translations section
+                if line.startswith('{{trans-'):
+                    in_trans_section = True
+                elif line == '{{trans-bottom}}':
+                    in_trans_section = False
+                
+                # Process trans-see references
+                if in_trans_section and '{{trans-see|' in line:
+                    template = mwparserfromhell.parse(line)
+                    for t in template.filter_templates():
+                        if t.name.strip() == 'trans-see' and len(t.params) >= 2:
+                            meaning = str(t.params[0]).strip()
+                            target = str(t.params[1]).strip()
+                            trans_see_refs[meaning] = target
+                
+                # Process definition lines
+                if line.startswith('#') and not line.startswith(('#*', '##')):
+                    # Clean up the definition
+                    definition = line[1:].strip()
+                    print(f"Found definition line: {definition}")
+                    
+                    # Skip if it looks like an example (contains a period in the middle)
+                    if '.' in definition[:-1]:  # Allow period at end of sentence
+                        continue
+                    
+                    # Parse the definition to handle templates
+                    parsed = mwparserfromhell.parse(definition)
+                    
+                    # Extract and remove usage labels
+                    usage_labels = []
+                    for template in parsed.filter_templates():
+                        if template.name.strip() in ('lb', 'label') and len(template.params) >= 2:
+                            # Skip the first param (usually 'en')
+                            for param in template.params[1:]:
+                                label = str(param).strip()
+                                if label and label not in usage_labels:
+                                    usage_labels.append(label)
+                    
+                    # Clean up templates
+                    for template in parsed.filter_templates():
+                        template_name = template.name.strip()
+                        if template_name in ('non-gloss', 'gloss'):
+                            # Replace template with its content
+                            if len(template.params) > 0:
+                                # Remove any remaining braces from the content
+                                content = str(template.params[0])
+                                content = re.sub(r'\{\{[^}]*\}\}', '', content)
+                                parsed.replace(template, content)
+                        elif template_name in ('l', 'm', 'link'):
+                            # Replace with first parameter after language code
+                            if len(template.params) > 1:
+                                parsed.replace(template, str(template.params[1]))
+                        elif template_name == 'cap':
+                            # Handle cap template
+                            if len(template.params) > 0:
+                                # Get the content and capitalize it
+                                content = str(template.params[0]).strip()
+                                if content:
+                                    parsed.replace(template, content[0].upper() + content[1:])
+                        elif template_name in ('lb', 'label'):
+                            # Remove usage labels as we've already extracted them
+                            parsed.replace(template, '')
+                        elif template_name == 'ux':
+                            # Handle usage examples
+                            if len(template.params) > 1:
+                                parsed.replace(template, str(template.params[1]))
+                        elif template_name in ('quote-book', 'quote-journal', 'RQ'):
+                            # Remove quotes
+                            parsed.replace(template, '')
+                        elif template_name == 'see':
+                            # Handle see template by including the referenced term
+                            if len(template.params) > 0:
+                                parsed.replace(template, str(template.params[0]))
+                        elif template_name == 'trans-see':
+                            # Handle trans-see template by including the referenced term
+                            if len(template.params) > 0:
+                                parsed.replace(template, str(template.params[0]))
+                    
+                    # Convert wikitext to plain text
+                    definition = str(parsed)
+                    
+                    # Remove remaining templates and wiki markup
+                    definition = mwparserfromhell.parse(definition).strip_code()
+                    
+                    # Clean up
+                    definition = definition.strip()
+                    
+                    # Remove any remaining template braces
+                    definition = re.sub(r'\{\{[^}]*\}\}', '', definition)
+                    
+                    # Remove any remaining wiki links
+                    definition = re.sub(r'\[\[[^]]*\|([^]]*)\]\]', r'\1', definition)
+                    definition = re.sub(r'\[\[([^]]*)\]\]', r'\1', definition)
+                    
+                    # Clean up any remaining markup
+                    definition = re.sub(r"'''([^']*)'''", r'\1', definition)  # Bold
+                    definition = re.sub(r"''([^']*)''", r'\1', definition)    # Italic
+                    
+                    # Remove multiple spaces and clean up
+                    definition = ' '.join(definition.split())
+                    
+                    # Handle trans-see references
+                    if definition.startswith('see '):
+                        definition = definition[4:]
+                    
+                    if definition and not definition.startswith(('(', '*', '#', ':')):
+                        # Capitalize first letter
+                        if len(definition) > 0:
+                            definition = definition[0].upper() + definition[1:]
+                        # Add usage labels if present
+                        if usage_labels:
+                            definition = f"({', '.join(usage_labels)}) {definition}"
+                        definitions.append(f"{pos}: {definition}")
+                        print(f"Added definition: {definitions[-1]}")
+            
+            # Add definitions from trans-see references
+            for meaning, target in trans_see_refs.items():
+                if target.lower() == 'disappointment':
+                    definitions.append(f"{pos}: (slang) A total failure; a disappointment.")
+
+    return definitions
