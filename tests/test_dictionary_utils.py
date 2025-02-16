@@ -61,6 +61,23 @@ class TestDictionaryUtils(unittest.TestCase):
         for i, definition in enumerate(definitions, 1):
             print(f"{i}. {definition}")
 
+    def test_get_word_definitions_scrawny(self):
+        # Get definitions for the word "scrawny"
+        definitions = get_word_definitions("scrawny")
+        
+        # Print actual definitions for debugging
+        print("\nActual definitions found for 'scrawny':")
+        for i, definition in enumerate(definitions, 1):
+            print(f"{i}. {definition}")
+        
+        # Verify we got exactly one definition
+        self.assertEqual(len(definitions), 1, "Should have found exactly one definition for 'scrawny'")
+        
+        # Verify the exact definition
+        expected_definition = "Adjective: Thin, malnourished and weak."
+        self.assertEqual(definitions[0], expected_definition, 
+                        f"Definition should be exactly '{expected_definition}'")
+
     def test_nonexistent_word(self):
         # Test a word that shouldn't exist in the dictionary
         definitions = get_word_definitions("xyzzynonexistent")

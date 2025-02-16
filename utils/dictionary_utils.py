@@ -73,6 +73,12 @@ def get_word_definitions(word: str) -> List[str]:
                 for label_match in re.finditer(r'\{\{lb\|en\|([^}]+)\}\}', definition):
                     usage_labels.append(label_match.group(1))
                 
+                # Handle capitalization template {{cap|word}}
+                cap_match = re.search(r'\{\{cap\|([^}]+)\}\}', definition)
+                if cap_match:
+                    cap_word = cap_match.group(1)
+                    definition = re.sub(r'\{\{cap\|[^}]+\}\}', cap_word, definition)
+                
                 # Handle non-gloss definitions specially - use a more precise regex
                 non_gloss_match = re.search(r'\{\{non-gloss\|((?:[^{}]|\{\{[^{}]*\}\})*)\}\}', definition)
                 if non_gloss_match:
@@ -107,6 +113,8 @@ def get_word_definitions(word: str) -> List[str]:
                 
                 # Clean up whitespace and ensure first letter is capitalized
                 definition = definition.strip()
+                # Remove leading commas and whitespace
+                definition = re.sub(r'^,\s*', '', definition)
                 if definition and not definition.startswith(('(', '*', '#', ':')):
                     # Capitalize first letter of the definition
                     if len(definition) > 0:
