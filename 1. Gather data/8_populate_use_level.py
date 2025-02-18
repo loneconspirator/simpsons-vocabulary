@@ -13,7 +13,7 @@ def get_context_from_transcript(episode_id, word):
     Returns a window of text around the word occurrence.
     """
     # Find the transcript file
-    transcript_dir = '../transcripts'
+    transcript_dir = 'transcripts'
     transcript_file = os.path.join(transcript_dir, f"{episode_id}.txt")
 
     if not os.path.exists(transcript_file):
@@ -47,91 +47,108 @@ def get_best_definition(word, context, definitions):
     Query Ollama API to select the best definition based on the context.
     """
     definitions_text = "\n".join(f"{i+1}. {def_}" for i, def_ in enumerate(definitions))
-    
-    prompt = f"""Given the word "{word}" used in this context:
+
+    prompt = f"""You are a language expert. Given the word "{word}" used in this context:
     "{context}"
-    
+
     Choose the most appropriate definition from these options:
     {definitions_text}
-    
-    Respond with ONLY a JSON object in this exact format:
-    {{"definition_number": <number between 1 and {len(definitions)}>}}
-    
+
+    Rules:
+    1. You MUST respond with ONLY a JSON object
+    2. The JSON MUST have exactly one field: "definition_number"
+    3. The value MUST be a number between 1 and {len(definitions)}
+    4. You MUST NOT include any other text or explanation
+
     Example response: {{"definition_number": 1}}"""
 
-    try:
-        response = requests.post('http://localhost:11434/api/generate',
-                               json={
-                                   'model': 'mistral',
-                                   'prompt': prompt,
-                                   'format': 'json',
-                                   'stream': False
-                               })
-        response.raise_for_status()
-        result = response.json()
-        response_text = result['response'].strip()
-        
+    def try_get_definition(retry=False):
         try:
-            response_json = json.loads(response_text)
-            index = response_json.get('definition_number', 0) - 1
-            if 0 <= index < len(definitions):
-                return definitions[index]
-        except (ValueError, json.JSONDecodeError):
-            pass
-            
-        print(f"Warning: Invalid definition number received for word '{word}': {response_text}")
-        return None
-    except Exception as e:
-        print(f"Error getting definition for word '{word}': {str(e)}")
-        return None
+            response = requests.post('http://localhost:11434/api/generate',
+                json={
+                    'model': 'mistral',
+                    'prompt': prompt,
+                    'stream': False
+                })
+            response.raise_for_status()
+            result = response.json()
+            response_text = result['response'].strip()
+
+            try:
+                response_json = json.loads(response_text)
+                index = response_json.get('definition_number', 0) - 1
+                if 0 <= index < len(definitions):
+                    return definitions[index]
+            except (ValueError, json.JSONDecodeError):
+                pass
+
+            if not retry:
+                return try_get_definition(retry=True)
+            print(f"Warning: Invalid definition number received for word '{word}': {response_text}")
+            return None
+        except Exception as e:
+            print(f"Error getting best definition for word '{word}': {str(e)}")
+            return None
+
+    return try_get_definition()
 
 def get_level_from_llm(word, definition, context):
     """
     Query Ollama API to determine the vocabulary level of a word.
     """
-    prompt = f"""Given the word "{word}" with definition "{definition}" and usage context "{context}",
+    prompt = f"""You are an educational expert. Given the word "{word}" with definition "{definition}" and usage context "{context}",
     classify it into one of these educational levels: elementary, middle, high, college, graduate, not vocabulary.
-    Consider the word's complexity, typical grade level of introduction, and academic usage.
-    
-    Respond with ONLY a JSON object in this exact format:
-    {{"level": <one of: "elementary", "middle", "high", "college", "graduate", "not vocabulary">}}
-    
+
+    Rules:
+    1. You MUST respond with ONLY a JSON object
+    2. The JSON MUST have exactly one field: "level"
+    3. The value MUST be EXACTLY one of: "elementary", "middle", "high", "college", "graduate", "not vocabulary"
+    4. Base your decision on:
+       - Word complexity
+       - Typical grade level of introduction
+       - Academic usage
+       - Subject matter relevance
+    5. You MUST NOT include any other text or explanation
+    6. You MUST NOT use any other values or variations
+
     Example response: {{"level": "elementary"}}"""
 
-    try:
-        response = requests.post('http://localhost:11434/api/generate',
-                               json={
-                                   'model': 'mistral',
-                                   'prompt': prompt,
-                                   'format': 'json',
-                                   'stream': False
-                               })
-        response.raise_for_status()
-        result = response.json()
-        response_text = result['response'].strip()
-        
+    def try_get_level(retry=False):
         try:
-            response_json = json.loads(response_text)
-            level = response_json.get('level', '').strip().lower()
-            
-            # Validate the response is one of our accepted values
-            valid_levels = {'elementary', 'middle', 'high', 'college', 'graduate', 'not vocabulary'}
-            if level in valid_levels:
-                return level
-        except (ValueError, json.JSONDecodeError):
-            pass
-            
-        print(f"Warning: Invalid level received for word '{word}': {response_text}")
-        return None
-    except Exception as e:
-        print(f"Error getting level for word '{word}': {str(e)}")
-        return None
+            response = requests.post('http://localhost:11434/api/generate',
+                json={
+                    'model': 'mistral',
+                    'prompt': prompt,
+                    'stream': False
+                })
+            response.raise_for_status()
+            result = response.json()
+            response_text = result['response'].strip()
+
+            try:
+                response_json = json.loads(response_text)
+                level = response_json.get('level', '').strip().lower()
+                valid_levels = {'elementary', 'middle', 'high', 'college', 'graduate', 'not vocabulary'}
+                if level in valid_levels:
+                    return level
+            except (ValueError, json.JSONDecodeError):
+                pass
+
+            if not retry:
+                return try_get_level(retry=True)
+            print(f"Warning: Invalid level received for word '{word}': {response_text}")
+            return None
+        except Exception as e:
+            print(f"Error getting level for word '{word}': {str(e)}")
+            return None
+
+    return try_get_level()
 
 def main():
     start_time = time.time()
-    
+
     # Connect to the database
-    conn = sqlite3.connect('../db/tv_vocab.db')
+    conn = sqlite3.connect('db/tv_vocab.db')
     cursor = conn.cursor()
 
     # Get total count first
@@ -139,7 +156,7 @@ def main():
         SELECT COUNT(DISTINCT u.id)
         FROM uses u
         JOIN words w ON u.word = w.word
-        WHERE w.is_vocabulary = 1 
+        WHERE w.is_vocabulary = 1
         AND u.level IS NULL
         AND u.no_definition = FALSE
     ''')
@@ -153,7 +170,7 @@ def main():
         WHERE w.is_vocabulary = 1
         AND u.level IS NULL
         AND u.no_definition = FALSE
-        LIMIT 1000
+        LIMIT 10000
     ''')
 
     records = cursor.fetchall()
@@ -182,7 +199,7 @@ def main():
             # Update the no_definition flag
             try:
                 cursor.execute('''
-                    UPDATE uses 
+                    UPDATE uses
                     SET no_definition = TRUE
                     WHERE word = ?
                 ''', (word,))
@@ -226,9 +243,6 @@ def main():
         except sqlite3.Error as e:
             print(f"Error updating database for word '{word}': {str(e)}")
 
-        # Small delay to avoid overwhelming the API
-        time.sleep(0.1)
-
     # Print final summary with timing information
     end_time = time.time()
     total_time = end_time - start_time
@@ -255,10 +269,11 @@ def main():
 
     # Print level distribution
     cursor.execute('''
-        SELECT level, COUNT(*)
+        SELECT level, COUNT(*) as count
         FROM uses
         WHERE level IS NOT NULL
         GROUP BY level
+        ORDER BY count DESC
     ''')
     print("\nLevel Distribution:")
     for level, count in cursor.fetchall():

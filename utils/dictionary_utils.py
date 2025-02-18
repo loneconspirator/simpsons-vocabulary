@@ -12,7 +12,7 @@ logger.setLevel(logging.WARNING)  # Set to WARNING to suppress debug output
 
 def get_word_definitions(word: str) -> List[str]:
     """Get all definitions for a word from the wiktionary database."""
-    conn = sqlite3.connect('./db/wiktionary.db')
+    conn = sqlite3.connect('db/wiktionary.db')
     conn.text_factory = str  # Use Python's string type for text
 
     # Try both composed and decomposed forms of the word
