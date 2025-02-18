@@ -84,6 +84,32 @@ async function editEpisode(episodeId) {
 }
 
 // Render word list for episode
+function renderDefinitions(word) {
+    return `
+        ${word.definitions.map((def, idx) => `
+            <div class="definition-option">
+                <input type="radio" 
+                       name="word_definition_${word.word}"
+                       value="${def}"
+                       ${word.selected_definition === def ? 'checked' : ''}
+                       onchange="saveDefinitionSelection('${word.word}', '${def}')">
+                <label>${def}</label>
+            </div>
+        `).join('')}
+        <div class="definition-option custom-definition">
+            <input type="radio" 
+                   name="word_definition_${word.word}"
+                   value="custom"
+                   ${word.selected_definition && !word.definitions.includes(word.selected_definition) ? 'checked' : ''}>
+            <textarea class="custom-definition-input"
+                    id="custom_definition_${word.word}"
+                    placeholder="Enter custom definition..."
+                    onfocus="handleCustomDefinitionFocus(event, '${word.word}')"
+                    onblur="handleCustomDefinitionBlur(event, '${word.word}')">${word.selected_definition && !word.definitions.includes(word.selected_definition) ? word.selected_definition : ''}</textarea>
+        </div>
+    `;
+}
+
 function renderWordList(words) {
     const wordList = document.getElementById('word-list');
     wordList.innerHTML = `
@@ -100,57 +126,41 @@ function renderWordList(words) {
                 <a href="#" onclick="showAllWords(); return false;" class="show-all-link">Show All Words</a>
             </div>
         </div>
-        <div class="word-items-container">
+        <div class="word-list-content">
             ${words.map((word, index) => `
-                <div class="word-item" 
+                <div class="word-item" draggable="true" 
                      data-word="${word.word}"
-                     data-order="${index + 1}"
-                     ondragover="handleDragOver(event)"
-                     ondrop="handleDrop(event)">
-                    <div class="word-header">
-                        <div class="drag-handle"
-                             draggable="true"
-                             ondragstart="handleDragStart(event)"
-                             ondragend="handleDragEnd(event)">⋮⋮</div>
-                        <input type="checkbox" 
-                               onchange="handleWordUseChange(event, '${word.word}')"
-                               ${word.is_used ? 'checked' : ''}
-                               id="word_use_${word.word}"
-                               name="word_use_${word.word}">
-                        <span id="word_text_${word.word}">${word.word}</span>
-                        <input type="text" 
-                               class="word-edit-box"
-                               id="word_edit_${word.word}">
-                        <a href="#" 
-                           class="edit-link"
-                           id="word_edit_link_${word.word}"
-                           onclick="editWord('${word.word}', event); return false;">edit</a>
-                        ${word.original_form && word.original_form !== word.word ? 
-                            `<span class="original-form">(${word.original_form})</span>` : ''}
-                    </div>
-                    <div class="definitions" id="definitions_${word.word}">
-                        ${word.definitions.map((def, idx) => `
-                            <div class="definition-option">
-                                <input type="radio" 
-                                       name="word_definition_${word.word}"
-                                       value="${def}"
-                                       ${word.selected_definition === def ? 'checked' : ''}
-                                       onchange="saveDefinitionSelection('${word.word}', '${def}')">
-                                <label>${def}</label>
-                            </div>
-                        `).join('')}
-                        <div class="definition-option custom-definition">
-                            <input type="radio" 
-                                   name="word_definition_${word.word}"
-                                   value="custom"
-                                   ${word.selected_definition && !word.definitions.includes(word.selected_definition) ? 'checked' : ''}>
-                            <textarea class="custom-definition-input"
-                                    id="custom_definition_${word.word}"
-                                    placeholder="Enter custom definition..."
-                                    onfocus="handleCustomDefinitionFocus(event, '${word.word}')"
-                                    onblur="handleCustomDefinitionBlur(event, '${word.word}')">${word.selected_definition && !word.definitions.includes(word.selected_definition) ? word.selected_definition : ''}</textarea>
+                     data-selected-definition="${word.selected_definition || ''}"
+                     ondragstart="handleDragStart(event)"
+                     ondragend="handleDragEnd(event)">
+                    <div class="word-header" onclick="toggleDefinitionsVisibility('${word.word}')">
+                        <div class="word-info">
+                            <input type="checkbox" 
+                                   ${word.is_used ? 'checked' : ''} 
+                                   onchange="handleWordUseChange(event, '${word.word}')"
+                                   onclick="event.stopPropagation()"
+                                   class="word-checkbox">
+                            <span class="word-text">${word.word}</span>
+                            ${word.original_form && word.original_form !== word.word ? 
+                                `<span class="original-form">(${word.original_form})</span>` : 
+                                ''}
+                        </div>
+                        <div class="word-actions" onclick="event.stopPropagation()">
+                            <select class="level-select" 
+                                    onchange="handleLevelChange(event, '${word.word}')"
+                                    title="Educational level">
+                                <option value="" ${!word.level ? 'selected' : ''}>-</option>
+                                <option value="elementary" ${word.level === 'elementary' ? 'selected' : ''}>Elementary</option>
+                                <option value="middle" ${word.level === 'middle' ? 'selected' : ''}>Middle</option>
+                                <option value="high" ${word.level === 'high' ? 'selected' : ''}>High</option>
+                                <option value="college" ${word.level === 'college' ? 'selected' : ''}>College</option>
+                                <option value="graduate" ${word.level === 'graduate' ? 'selected' : ''}>Graduate</option>
+                                <option value="not vocabulary" ${word.level === 'not vocabulary' ? 'selected' : ''}>Not Vocabulary</option>
+                            </select>
+                            <button onclick="editWord('${word.word}', event)" class="edit-button">Edit</button>
                         </div>
                     </div>
+                    <div class="definitions-container" style="display: none;"></div>
                 </div>
             `).join('')}
         </div>
@@ -172,23 +182,51 @@ function renderWordList(words) {
     }, 0);
 }
 
-// Toggle definitions visibility without updating use status
-function toggleDefinitionsVisibility(word, show) {
-    const definitions = document.getElementById(`definitions_${word}`);
-    if (definitions) {
-        if (show) {
-            definitions.classList.add('show');
+// Toggle definitions visibility
+async function toggleDefinitionsVisibility(word, show) {
+    const wordItem = document.querySelector(`.word-item[data-word="${word}"]`);
+    const definitionsContainer = wordItem.querySelector('.definitions-container');
+    
+    if (show !== undefined) {
+        definitionsContainer.style.display = show ? 'block' : 'none';
+        return;
+    }
+    
+    const isVisible = definitionsContainer.style.display !== 'none';
+    if (isVisible) {
+        definitionsContainer.style.display = 'none';
+    } else {
+        // If definitions haven't been loaded yet, load them
+        if (!definitionsContainer.innerHTML.trim()) {
+            definitionsContainer.innerHTML = '<div class="loading">Loading definitions...</div>';
+            definitionsContainer.style.display = 'block';
+            
+            const definitions = await fetchDefinitions(word);
+            const wordData = {
+                word: word,
+                definitions: definitions,
+                selected_definition: wordItem.dataset.selectedDefinition || ''
+            };
+            
+            definitionsContainer.innerHTML = renderDefinitions(wordData);
         } else {
-            definitions.classList.remove('show');
+            definitionsContainer.style.display = 'block';
         }
     }
 }
 
-// Handle checkbox change
-function handleWordUseChange(event, word) {
-    const isChecked = event.target.checked;
-    toggleDefinitionsVisibility(word, isChecked);
-    updateWordUse(word, isChecked);
+// Add this function to fetch definitions
+async function fetchDefinitions(word) {
+    try {
+        const response = await fetch(`/api/words/${word}/definitions`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch definitions');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching definitions:', error);
+        return [];
+    }
 }
 
 // Drag and drop handlers
@@ -583,5 +621,130 @@ async function updateWordDefinition(word, definition) {
     });
 }
 
+async function updateWordLevel(word, level) {
+    try {
+        const response = await fetch(`/api/episodes/${currentEpisode.episode_id}/words/${word}/level`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ level })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update word level');
+        }
+    } catch (error) {
+        console.error('Error updating word level:', error);
+        alert('Failed to update word level');
+    }
+}
+
+// Handle level changes
+function handleLevelChange(event, word) {
+    const level = event.target.value;
+    updateWordLevel(word, level);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', renderEpisodesList);
+
+const style = document.createElement('style');
+style.textContent = `
+    .level-select {
+        margin-right: 10px;
+        padding: 2px 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: white;
+    }
+    
+    .word-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+`;
+document.head.appendChild(style);
+
+const definitionStyles = document.createElement('style');
+definitionStyles.textContent = `
+    .definitions-container {
+        margin-top: 10px;
+        padding: 10px;
+        border-top: 1px solid #eee;
+    }
+    
+    .definition-option {
+        margin: 5px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .definition-option input[type="radio"] {
+        margin-top: 3px;
+    }
+    
+    .definition-option label {
+        flex: 1;
+    }
+    
+    .custom-definition {
+        margin-top: 10px;
+    }
+    
+    .custom-definition-input {
+        width: 100%;
+        margin-top: 5px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        min-height: 60px;
+        resize: vertical;
+    }
+`;
+document.head.appendChild(definitionStyles);
+
+const headerStyles = document.createElement('style');
+headerStyles.textContent = `
+    .word-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        cursor: pointer;
+        background: #f8f8f8;
+        border-radius: 4px;
+    }
+    
+    .word-header:hover {
+        background: #f0f0f0;
+    }
+    
+    .word-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .word-text {
+        font-weight: 500;
+    }
+    
+    .original-form {
+        color: #666;
+        font-style: italic;
+    }
+`;
+document.head.appendChild(headerStyles);
+
+const loadingStyles = document.createElement('style');
+loadingStyles.textContent = `
+    .loading {
+        padding: 20px;
+        text-align: center;
+        color: #666;
+    }
+`;
+document.head.appendChild(loadingStyles);

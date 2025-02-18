@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS uses (
     definition TEXT,
     use BOOLEAN DEFAULT FALSE,
     appearance_order INTEGER,
+    level TEXT CHECK (level IN ('elementary', 'middle', 'high', 'college', 'graduate', 'not vocabulary')) DEFAULT NULL,
+    no_definition BOOLEAN DEFAULT FALSE NOT NULL,
     FOREIGN KEY (word) REFERENCES words(word),
     FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
 )

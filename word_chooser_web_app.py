@@ -40,7 +40,8 @@ def get_episode(episode_id):
 
     words = db.execute('''
         SELECT DISTINCT w.word, u.original_word as original_form,
-               u.use as is_used, u.definition as selected_definition
+               u.use as is_used, u.definition as selected_definition,
+               u.level
         FROM words w
         INNER JOIN uses u ON w.word = u.word
         WHERE w.is_vocabulary = 1 AND u.episode_id = ?
@@ -48,13 +49,8 @@ def get_episode(episode_id):
     ''', [episode_id]).fetchall()
 
     episode_data = dict(episode)
-    episode_data['words'] = []
-
-    for word in words:
-        word_data = dict(word)
-        word_data['definitions'] = get_word_definitions(word['word'])
-        episode_data['words'].append(word_data)
-
+    episode_data['words'] = [dict(word) for word in words]
+    
     return jsonify(episode_data)
 
 @app.route('/api/episodes/<string:episode_id>/all-words')
@@ -139,6 +135,26 @@ def update_word_definition(episode_id, word):
         return jsonify({'status': 'success'})
 
     return jsonify({'error': 'Definition not provided'}), 400
+
+@app.route('/api/episodes/<string:episode_id>/words/<string:word>/level', methods=['PUT'])
+def update_word_level(episode_id, word):
+    db = get_db()
+    data = request.json
+    level = data.get('level')
+    
+    # Convert empty string to NULL
+    if level == '':
+        level = None
+        
+    # Update the level in uses table
+    db.execute('''
+        UPDATE uses
+        SET level = ?
+        WHERE word = ? AND episode_id = ?
+    ''', [level, word, episode_id])
+    db.commit()
+    
+    return jsonify({'success': True})
 
 @app.route('/api/words/<string:word>/vocabulary', methods=['PUT'])
 def update_word_vocabulary(word):
@@ -230,5 +246,11 @@ def reorder_words(episode_id):
         db.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/words/<string:word>/definitions')
+def get_word_definitions_api(word):
+    """Separate endpoint to fetch definitions for a single word"""
+    definitions = get_word_definitions(word)
+    return jsonify(definitions)
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5002)
