@@ -6,13 +6,14 @@ def get_publishable_episodes():
     conn = sqlite3.connect('db/tv_vocab.db')
     cursor = conn.cursor()
 
-    # Get all publishable episodes with their words
+    # Get all publishable episodes with their words that have levels
     cursor.execute('''
-        SELECT e.season, e.episode, e.episode_name, e.episode_id, u.word, u.definition
+        SELECT e.season, e.episode, e.episode_name, e.episode_id,
+               u.word, u.definition, u.level
         FROM episodes e
         LEFT JOIN uses u ON e.episode_id = u.episode_id
-        WHERE e.publishable = TRUE
-          AND u.use = TRUE
+        WHERE u.level IS NOT NULL
+          AND u.level != 'not vocabulary'
         ORDER BY e.season, e.episode, u.appearance_order
     ''')
 
@@ -23,12 +24,18 @@ def get_publishable_episodes():
 def get_unique_seasons(episodes):
     return sorted(set(episode[0] for episode in episodes))
 
+def get_unique_levels(episodes):
+    levels = set(episode[6] for episode in episodes if episode[6] and episode[6] != 'not vocabulary')
+    # Sort by educational progression
+    level_order = {'elementary': 1, 'middle': 2, 'high': 3, 'college': 4, 'graduate': 5}
+    return sorted(levels, key=lambda x: level_order[x])
+
 def group_episodes_by_season(episodes):
     episodes_by_season = defaultdict(list)
     current_episode = None
     episode_words = {}  # Changed to dict to prevent duplicates, keyed by word
 
-    for season, episode_num, name, episode_id, word, definition in episodes:
+    for season, episode_num, name, episode_id, word, definition, level in episodes:
         # If we're starting a new episode
         if episode_id != current_episode:
             # If we had a previous episode, save it
@@ -44,7 +51,7 @@ def group_episodes_by_season(episodes):
         # Add word and definition to current episode if they exist
         if word:
             # Keep only the latest definition for a word
-            episode_words[word] = (word, definition if definition else '')
+            episode_words[word] = (word, definition if definition else '', level)
 
     # Don't forget to add the last episode
     if current_episode is not None:
@@ -52,12 +59,22 @@ def group_episodes_by_season(episodes):
 
     return episodes_by_season
 
-def generate_html(seasons, episodes_by_season):
+def generate_html(seasons, episodes_by_season, levels):
     # Create output directory if it doesn't exist
     os.makedirs('output', exist_ok=True)
 
     with open('reference.html', 'r') as f:
         template = f.read()
+
+    # Generate level checkboxes HTML
+    level_checkboxes = []
+    for level in levels:
+        level_checkboxes.append(f'''
+            <label class="level-filter">
+                <input type="checkbox" value="{level}" checked onchange="toggleLevel('{level}')">
+                {level.title()}
+            </label>''')
+    level_checkboxes_html = '\n        '.join(level_checkboxes)
 
     # Generate season buttons HTML
     season_buttons = []
@@ -72,10 +89,10 @@ def generate_html(seasons, episodes_by_season):
         for episode_num, name, words in episodes_by_season[season]:
             # Generate vocabulary items HTML
             vocab_items = []
-            for word, definition in words:
+            for word, definition, level in words:
                 definition_html = f'<div class="definition">{definition}</div>' if definition else ''
                 vocab_items.append(f'''
-                <div class="vocabulary-item">
+                <div class="vocabulary-item level-{level}">
                     <div class="word">{word}</div>
                     {definition_html}
                 </div>''')
@@ -89,40 +106,76 @@ def generate_html(seasons, episodes_by_season):
         </div>''')
     episode_cards_html = ''.join(episode_cards)
 
+    # Add level filtering JavaScript
+    level_filtering_js = '''
+    <script>
+    function toggleLevel(level) {
+        const words = document.querySelectorAll(`.level-${level}`);
+        const isChecked = document.querySelector(`input[value="${level}"]`).checked;
+        words.forEach(word => {
+            word.style.display = isChecked ? 'block' : 'none';
+        });
+    }
+    </script>
+    '''
+
+    # Add level filtering styles
+    level_filtering_css = '''
+    <style>
+    .level-filters {
+        margin: 20px 0;
+        text-align: center;
+    }
+
+    .level-filter {
+        margin: 0 10px;
+        cursor: pointer;
+    }
+
+    .level-filter input {
+        margin-right: 5px;
+    }
+
+    .vocabulary-item {
+        display: block;
+    }
+    </style>
+    '''
+
     # Find the insertion points in the template
     nav_start = template.find('<nav class="season-nav">')
     nav_end = template.find('</nav>', nav_start)
     main_start = template.find('<main class="episode-container">')
     main_end = template.find('</main>', main_start)
+    head_end = template.find('</head>')
 
     # Construct the final HTML
     final_html = (
-        template[:nav_start + len('<nav class="season-nav">\n        <span class="season-label">Season: </span>\n        ')] +
+        template[:head_end] +
+        level_filtering_css +
+        level_filtering_js +
+        template[head_end:nav_start] +
+        '<div class="level-filters">\n        ' +
+        '<span class="level-label">Show levels: </span>\n        ' +
+        level_checkboxes_html +
+        '\n    </div>\n    ' +
+        template[nav_start:nav_start + len('<nav class="season-nav">\n        <span class="season-label">Season: </span>\n        ')] +
         season_buttons_html +
-        template[nav_end - 1:main_start + len('<main class="episode-container">')] +
+        template[nav_end:main_start + len('<main class="episode-container">')] +
         episode_cards_html +
-        template[main_end - 1:]
+        template[main_end:]
     )
 
-    # Create web directory if it doesn't exist
-    os.makedirs('web', exist_ok=True)
-
-    # Write the output file
+    # Write the final HTML to a file
     with open('web/index.html', 'w') as f:
         f.write(final_html)
 
 def main():
-    # Get all publishable episodes and their words
     episodes = get_publishable_episodes()
-
-    # Get unique seasons
     seasons = get_unique_seasons(episodes)
-
-    # Group episodes by season
+    levels = get_unique_levels(episodes)
     episodes_by_season = group_episodes_by_season(episodes)
-
-    # Generate the HTML file
-    generate_html(seasons, episodes_by_season)
+    generate_html(seasons, episodes_by_season, levels)
 
 if __name__ == '__main__':
     main()
