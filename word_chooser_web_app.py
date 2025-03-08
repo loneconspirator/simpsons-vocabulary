@@ -173,6 +173,23 @@ def update_word_vocabulary(word):
     
     return jsonify({'error': 'is_vocabulary not provided'}), 400
 
+@app.route('/api/episodes/<string:episode_id>/publishable', methods=['PUT'])
+def update_episode_publishable(episode_id):
+    db = get_db()
+    data = request.json
+    publishable = data.get('publishable')
+    
+    if publishable is not None:
+        db.execute('''
+            UPDATE episodes
+            SET publishable = ?
+            WHERE episode_id = ?
+        ''', [1 if publishable else 0, episode_id])
+        db.commit()
+        return jsonify({'status': 'success'})
+    
+    return jsonify({'error': 'publishable not provided'}), 400
+
 @app.route('/api/episodes/<string:episode_id>/uses', methods=['POST'])
 def create_word_use(episode_id):
     """Create a new word use for an episode. If the word doesn't exist, create it."""

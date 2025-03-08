@@ -14,6 +14,7 @@ def get_publishable_episodes():
         LEFT JOIN uses u ON e.episode_id = u.episode_id
         WHERE u.level IS NOT NULL
           AND u.level != 'not vocabulary'
+          AND e.publishable = 1
         ORDER BY e.season, e.episode, u.appearance_order
     ''')
 

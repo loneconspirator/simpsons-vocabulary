@@ -38,6 +38,7 @@ async function renderEpisodesList() {
                             <tr>
                                 <th>Episode</th>
                                 <th>Name</th>
+                                <th>Publishable</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -47,6 +48,7 @@ async function renderEpisodesList() {
                                     <tr>
                                         <td>${episode.episode_number}</td>
                                         <td>${episode.episode_name}</td>
+                                        <td>${episode.publishable ? '✓' : '✗'}</td>
                                         <td>
                                             <a href="#" onclick="editEpisode('${episode.episode_id}'); return false;" 
                                                class="edit-link">Edit</a>
@@ -79,6 +81,25 @@ async function editEpisode(episodeId) {
     document.getElementById('episode_name').value = episode.episode_name;
     document.getElementById('season_number').value = episode.season || '';
     document.getElementById('episode_number').value = episode.episode_number;
+    
+    // Add publishable checkbox
+    const wordList = document.getElementById('word-list');
+    const publishableCheckbox = document.createElement('div');
+    publishableCheckbox.className = 'form-group';
+    publishableCheckbox.innerHTML = `
+        <label>
+            <input type="checkbox" id="episode_publishable" ${episode.publishable ? 'checked' : ''}>
+            Publishable
+        </label>
+    `;
+    
+    // Insert the checkbox before the word list
+    wordList.parentNode.insertBefore(publishableCheckbox, wordList);
+    
+    // Add event listener for publishable checkbox
+    document.getElementById('episode_publishable').addEventListener('change', function(event) {
+        updateEpisodePublishable(episode.episode_id, event.target.checked);
+    });
     
     renderWordList(episode.words);
 }
@@ -371,10 +392,16 @@ async function addNewWord() {
 
 // Return to episode list
 async function returnToEpisodeList() {
-    document.getElementById('episode-edit').style.display = 'none';
     document.getElementById('episode-list').style.display = 'block';
+    document.getElementById('episode-edit').style.display = 'none';
     
-    // Re-render episode list to ensure it's up to date
+    // Remove the publishable checkbox when returning to episode list
+    const publishableCheckbox = document.querySelector('.form-group label input#episode_publishable');
+    if (publishableCheckbox) {
+        publishableCheckbox.parentNode.parentNode.remove();
+    }
+    
+    // Refresh episodes list
     await renderEpisodesList();
     
     // Wait for DOM to update
@@ -644,6 +671,26 @@ async function updateWordLevel(word, level) {
 function handleLevelChange(event, word) {
     const level = event.target.value;
     updateWordLevel(word, level);
+}
+
+// Update episode publishable status
+async function updateEpisodePublishable(episodeId, publishable) {
+    try {
+        const response = await fetch(`/api/episodes/${episodeId}/publishable`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ publishable })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update episode publishable status');
+        }
+    } catch (error) {
+        console.error('Error updating episode publishable status:', error);
+        alert('Failed to update episode publishable status');
+    }
 }
 
 // Initialize
