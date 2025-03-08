@@ -70,10 +70,12 @@ def generate_html(seasons, episodes_by_season, levels):
     # Generate level checkboxes HTML
     level_checkboxes = []
     for level in levels:
+        level_initial = level[0].upper()
         level_checkboxes.append(f'''
             <label class="level-filter">
                 <input type="checkbox" value="{level}" checked onchange="toggleLevel('{level}')">
-                {level.title()}
+                <span class="level-icon level-{level}">{level_initial}</span>
+                <span class="level-label-text">{level.title()}</span>
             </label>''')
     level_checkboxes_html = '\n        '.join(level_checkboxes)
 
@@ -91,10 +93,14 @@ def generate_html(seasons, episodes_by_season, levels):
             # Generate vocabulary items HTML
             vocab_items = []
             for word, definition, level in words:
+                level_initial = level[0].upper()
                 definition_html = f'<div class="definition">{definition}</div>' if definition else ''
                 vocab_items.append(f'''
-                <div class="vocabulary-item level-{level}">
-                    <div class="word"><a href="https://en.wiktionary.org/wiki/{word}" class="word-link">{word}</a></div>
+                <div class="vocabulary-item" data-level="{level}">
+                    <div class="word">
+                        <a href="https://en.wiktionary.org/wiki/{word}" class="word-link">{word}</a>
+                        <span class="level-icon level-{level}">{level_initial}</span>
+                    </div>
                     {definition_html}
                 </div>''')
             vocab_html = ''.join(vocab_items)
@@ -111,7 +117,7 @@ def generate_html(seasons, episodes_by_season, levels):
     level_filtering_js = '''
     <script>
     function toggleLevel(level) {
-        const words = document.querySelectorAll(`.level-${level}`);
+        const words = document.querySelectorAll(`[data-level="${level}"]`);
         const isChecked = document.querySelector(`input[value="${level}"]`).checked;
         words.forEach(word => {
             word.style.display = isChecked ? 'block' : 'none';
@@ -129,27 +135,81 @@ def generate_html(seasons, episodes_by_season, levels):
     }
 
     .level-filter {
-        margin: 0 10px;
+        margin: 0 12px;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
     }
 
     .level-filter input {
-        margin-right: 5px;
+        margin-right: 6px;
+    }
+
+    .level-label-text {
+        margin-left: 6px;
     }
 
     .vocabulary-item {
         display: block;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
     }
-    
+
+    .vocabulary-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
     .word-link {
         color: inherit;
         text-decoration: none;
         border-bottom: 1px dotted #999;
     }
-    
+
     .word-link:hover {
         color: #ff6b6b;
         border-bottom: 1px solid #ff6b6b;
+    }
+
+    .word {
+        display: flex;
+        align-items: center;
+        font-weight: bold;
+    }
+
+    .level-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: bold;
+        margin-left: 8px;
+        color: white;
+    }
+
+    .level-elementary {
+        background-color: #FED90F; /* Simpsons Yellow */
+    }
+
+    .level-middle {
+        background-color: #3D99F6; /* Marge's Hair Blue */
+    }
+
+    .level-high {
+        background-color: #FB503B; /* Lisa's Dress Red */
+    }
+
+    .level-college {
+        background-color: #82D440; /* Marge's Dress Green */
+    }
+
+    .level-graduate {
+        background-color: #A67EB7; /* Purple (Patty/Selma hair) */
     }
     </style>
     '''
