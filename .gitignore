@@ -32,3 +32,8 @@ downloads/
 nltk_data/
 wiktionary/dump.xml
 output/
+
+# Keep web directory but exclude large files
+web/*.mp4
+web/*.mp3
+web/*.zip
