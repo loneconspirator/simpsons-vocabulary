@@ -134,65 +134,122 @@ def generate_html(seasons, episodes_by_season, levels):
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const seasonButtons = document.querySelectorAll('.season-btn');
+        
+        // Function to update URL with query parameters
+        function updateUrlParams(season, episode = null) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('season', season);
+            
+            if (episode) {
+                url.searchParams.set('episode', episode);
+            } else {
+                url.searchParams.delete('episode');
+            }
+            
+            // Update URL without reloading the page
+            window.history.pushState({}, '', url);
+        }
+        
+        // Function to show a specific season
+        function showSeason(season) {
+            // Update active button
+            seasonButtons.forEach(btn => {
+                if (btn.textContent === season) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Hide all episode cards with transition
+            const allEpisodeCards = document.querySelectorAll('.episode-card');
+            allEpisodeCards.forEach(card => {
+                if (card.classList.contains(`season-${season}`)) {
+                    card.classList.remove('hidden');
+                    // Small delay to ensure transform happens
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 50);
+                } else {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(10px)';
+                    // Add hidden class after transition
+                    setTimeout(() => {
+                        card.classList.add('hidden');
+                    }, 300);
+                }
+            });
+            
+            // Show episode links for the selected season
+            const allEpisodeLinks = document.querySelectorAll('.episode-links-container');
+            allEpisodeLinks.forEach(container => {
+                if (container.classList.contains(`season-${season}-episodes`)) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            });
+            
+            // Update URL
+            updateUrlParams(season);
+        }
+        
+        // Function to scroll to a specific episode
+        function scrollToEpisode(season, episode) {
+            const targetId = `#episode-${season}-${episode}`;
+            const targetElement = document.querySelector(targetId);
+            
+            if (targetElement) {
+                window.scrollTo({
+                    top: targetElement.offsetTop - 100, // Offset to account for fixed header
+                    behavior: 'smooth'
+                });
+                
+                // Update URL
+                updateUrlParams(season, episode);
+            }
+        }
 
         seasonButtons.forEach(button => {
             button.addEventListener('click', function() {
-                // Remove active class from all buttons
-                seasonButtons.forEach(btn => btn.classList.remove('active'));
-
-                // Add active class to clicked button
-                this.classList.add('active');
-
-                // Get the season number
                 const season = this.textContent;
-
-                // Hide all episode cards with transition
-                const allEpisodeCards = document.querySelectorAll('.episode-card');
-                allEpisodeCards.forEach(card => {
-                    if (card.classList.contains(`season-${season}`)) {
-                        card.classList.remove('hidden');
-                        // Small delay to ensure transform happens
-                        setTimeout(() => {
-                            card.style.opacity = '1';
-                            card.style.transform = 'translateY(0)';
-                        }, 50);
-                    } else {
-                        card.style.opacity = '0';
-                        card.style.transform = 'translateY(10px)';
-                        // Add hidden class after transition
-                        setTimeout(() => {
-                            card.classList.add('hidden');
-                        }, 300);
-                    }
-                });
-                
-                // Show episode links for the selected season
-                const allEpisodeLinks = document.querySelectorAll('.episode-links-container');
-                allEpisodeLinks.forEach(container => {
-                    if (container.classList.contains(`season-${season}-episodes`)) {
-                        container.classList.remove('hidden');
-                    } else {
-                        container.classList.add('hidden');
-                    }
-                });
+                showSeason(season);
             });
         });
         
-        // Add smooth scrolling for episode links
+        // Add click handlers for episode links
         document.querySelectorAll('.episode-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 const targetId = this.getAttribute('href');
-                const targetElement = document.querySelector(targetId);
+                const match = targetId.match(/episode-(\\d+)-(\\d+)/);
                 
-                if (targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 100, // Offset to account for fixed header
-                        behavior: 'smooth'
-                    });
+                if (match) {
+                    const season = match[1];
+                    const episode = match[2];
+                    scrollToEpisode(season, episode);
                 }
             });
         });
+        
+        // Check for query parameters on page load
+        const urlParams = new URLSearchParams(window.location.search);
+        const seasonParam = urlParams.get('season');
+        const episodeParam = urlParams.get('episode');
+        
+        if (seasonParam) {
+            // Show the specified season
+            showSeason(seasonParam);
+            
+            // If episode is specified, scroll to it
+            if (episodeParam) {
+                // Small delay to ensure season content is loaded
+                setTimeout(() => {
+                    scrollToEpisode(seasonParam, episodeParam);
+                }, 500);
+            }
+        }
     });
     </script>
     '''
