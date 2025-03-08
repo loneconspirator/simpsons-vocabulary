@@ -94,7 +94,7 @@ def generate_html(seasons, episodes_by_season, levels):
                 definition_html = f'<div class="definition">{definition}</div>' if definition else ''
                 vocab_items.append(f'''
                 <div class="vocabulary-item level-{level}">
-                    <div class="word">{word}</div>
+                    <div class="word"><a href="https://en.wiktionary.org/wiki/{word}" class="word-link">{word}</a></div>
                     {definition_html}
                 </div>''')
             vocab_html = ''.join(vocab_items)
@@ -139,6 +139,17 @@ def generate_html(seasons, episodes_by_season, levels):
 
     .vocabulary-item {
         display: block;
+    }
+    
+    .word-link {
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px dotted #999;
+    }
+    
+    .word-link:hover {
+        color: #ff6b6b;
+        border-bottom: 1px solid #ff6b6b;
     }
     </style>
     '''
