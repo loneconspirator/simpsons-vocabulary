@@ -17,26 +17,23 @@
             padding: 20px;
             text-align: center;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-        }
-
-        .header img {
-            width: 80px;
-            height: 80px;
-            margin-right: 20px;
-            border-radius: 50%;
-            object-fit: cover;
-            object-position: top;
-            background-color: white;
-            padding: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
         }
 
         .header h1 {
             margin: 0;
             color: #000;
             font-size: 2em;
+        }
+
+        .header p {
+            margin: 8px 0 0 0;
+            font-style: italic;
+            font-weight: 300;
+            color: #333;
+            font-size: 1.1em;
         }
 
         .season-nav {
@@ -127,18 +124,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const seasonButtons = document.querySelectorAll('.season-btn');
-            
+
             seasonButtons.forEach(button => {
                 button.addEventListener('click', function() {
                     // Remove active class from all buttons
                     seasonButtons.forEach(btn => btn.classList.remove('active'));
-                    
+
                     // Add active class to clicked button
                     this.classList.add('active');
-                    
+
                     // Get the season number
                     const season = this.textContent;
-                    
+
                     // Hide all episode cards with transition
                     const allEpisodeCards = document.querySelectorAll('.episode-card');
                     allEpisodeCards.forEach(card => {
@@ -165,8 +162,8 @@
 </head>
 <body>
     <header class="header">
-        <img src="smart-lisa.png" alt="Simpsons Logo">
         <h1>Simpsons Vocabulary</h1>
+        <p>Learn words the funny way! Review the list before watching an episode then see the words in hilarious action.</p>
     </header>
 
     <nav class="season-nav">
@@ -195,5 +192,18 @@
             </div>
         </div>
     </main>
+
+    <footer style="background-color: #f5f5f5; padding: 20px; margin-top: 20px; text-align: center; font-size: 0.9em; color: #666; border-top: 1px solid #ddd;">
+        <div style="margin-bottom: 15px;">
+            <a href="https://l0ne1.aidaform.com/free-account-template-contact-form-with-captcha" style="display: inline-block; padding: 8px 15px; background-color: #ff6b6b; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Provide Feedback</a>
+        </div>
+        <p>The Simpsons is a copyrighted trademark of Twentieth Century Fox. <br/>
+            This vocabulary site is unofficial and unaffiliated with them and does not have a team of expensive lawyers like Mr. Burns does.</p>
+        <div style="line-height: 1.5;">
+            This work is available under <a href="https://creativecommons.org/licenses/by-sa/4.0/" style="color: #ff6b6b; text-decoration: underline;">Creative Commons Attribution-ShareAlike License</a>.<br>
+            Definitions originated from <a href="https://www.wiktionary.org/" style="color: #ff6b6b; text-decoration: underline;">Wiktionary.org</a> but may be edited or outdated.<br>
+            This site is free and just for fun. No guarantees, no promises, no liability. Use at your own risk. Be cool.
+        </div>
+    </footer>
 </body>
 </html>
