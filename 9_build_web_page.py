@@ -85,21 +85,21 @@ def generate_html(seasons, episodes_by_season, levels):
         active = ' active' if season == seasons[0] else ''
         season_buttons.append(f'<button class="season-btn{active}">{season}</button>')
     season_buttons_html = '\n        '.join(season_buttons)
-    
+
     # Generate episode links container for each season
     episode_links_containers = []
     for season in seasons:
         episode_links = []
         for episode_num, _, _ in episodes_by_season[season]:
             episode_links.append(f'<a href="#episode-{season}-{episode_num}" class="episode-link">{episode_num}</a>')
-        
+
         hidden = ' hidden' if season != seasons[0] else ''
         episode_links_html = '\n            '.join(episode_links)
         episode_links_containers.append(f'''
         <div class="episode-links-container season-{season}-episodes{hidden}">
             {episode_links_html}
         </div>''')
-    
+
     episode_links_containers_html = ''.join(episode_links_containers)
 
     # Generate episode cards HTML
@@ -134,22 +134,22 @@ def generate_html(seasons, episodes_by_season, levels):
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const seasonButtons = document.querySelectorAll('.season-btn');
-        
+
         // Function to update URL with query parameters
         function updateUrlParams(season, episode = null) {
             const url = new URL(window.location.href);
             url.searchParams.set('season', season);
-            
+
             if (episode) {
                 url.searchParams.set('episode', episode);
             } else {
                 url.searchParams.delete('episode');
             }
-            
+
             // Update URL without reloading the page
             window.history.pushState({}, '', url);
         }
-        
+
         // Function to show a specific season
         function showSeason(season) {
             // Update active button
@@ -160,7 +160,7 @@ def generate_html(seasons, episodes_by_season, levels):
                     btn.classList.remove('active');
                 }
             });
-            
+
             // Hide all episode cards with transition
             const allEpisodeCards = document.querySelectorAll('.episode-card');
             allEpisodeCards.forEach(card => {
@@ -180,7 +180,7 @@ def generate_html(seasons, episodes_by_season, levels):
                     }, 300);
                 }
             });
-            
+
             // Show episode links for the selected season
             const allEpisodeLinks = document.querySelectorAll('.episode-links-container');
             allEpisodeLinks.forEach(container => {
@@ -190,22 +190,22 @@ def generate_html(seasons, episodes_by_season, levels):
                     container.classList.add('hidden');
                 }
             });
-            
+
             // Update URL
             updateUrlParams(season);
         }
-        
+
         // Function to scroll to a specific episode
         function scrollToEpisode(season, episode) {
             const targetId = `#episode-${season}-${episode}`;
             const targetElement = document.querySelector(targetId);
-            
+
             if (targetElement) {
                 window.scrollTo({
                     top: targetElement.offsetTop - 100, // Offset to account for fixed header
                     behavior: 'smooth'
                 });
-                
+
                 // Update URL
                 updateUrlParams(season, episode);
             }
@@ -217,14 +217,14 @@ def generate_html(seasons, episodes_by_season, levels):
                 showSeason(season);
             });
         });
-        
+
         // Add click handlers for episode links
         document.querySelectorAll('.episode-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 const targetId = this.getAttribute('href');
                 const match = targetId.match(/episode-(\\d+)-(\\d+)/);
-                
+
                 if (match) {
                     const season = match[1];
                     const episode = match[2];
@@ -232,16 +232,16 @@ def generate_html(seasons, episodes_by_season, levels):
                 }
             });
         });
-        
+
         // Check for query parameters on page load
         const urlParams = new URLSearchParams(window.location.search);
         const seasonParam = urlParams.get('season');
         const episodeParam = urlParams.get('episode');
-        
+
         if (seasonParam) {
             // Show the specified season
             showSeason(seasonParam);
-            
+
             // If episode is specified, scroll to it
             if (episodeParam) {
                 // Small delay to ensure season content is loaded
@@ -289,20 +289,20 @@ def generate_html(seasons, episodes_by_season, levels):
     .level-label-text {
         margin-left: 6px;
     }
-    
+
     .season-nav, .episode-nav {
         padding: 20px;
         display: flex;
         gap: 10px;
         align-items: center;
     }
-    
+
     .season-label, .episode-label {
         color: #ff6b6b;
         font-size: 1.2em;
         margin-right: 10px;
     }
-    
+
     /* Clear the existing season-nav styles from the template */
     .navigation-container {
         display: flex;
@@ -371,7 +371,7 @@ def generate_html(seasons, episodes_by_season, levels):
     .level-graduate {
         background-color: #A67EB7; /* Purple (Patty/Selma hair) */
     }
-    
+
     .episode-links-container {
         display: flex;
         flex-wrap: wrap;
@@ -379,11 +379,11 @@ def generate_html(seasons, episodes_by_season, levels):
         justify-content: center;
         transition: opacity 0.3s ease;
     }
-    
+
     .episode-links-container.hidden {
         display: none;
     }
-    
+
     .episode-link {
         display: inline-flex;
         align-items: center;
@@ -398,7 +398,7 @@ def generate_html(seasons, episodes_by_season, levels):
         font-weight: bold;
         transition: all 0.2s ease;
     }
-    
+
     .episode-link:hover {
         background-color: #ff6b6b;
         color: white;
@@ -438,7 +438,7 @@ def generate_html(seasons, episodes_by_season, levels):
     )
 
     # Write the final HTML to a file
-    with open('web/index.html', 'w') as f:
+    with open('docs/index.html', 'w') as f:
         f.write(final_html)
 
 def main():
